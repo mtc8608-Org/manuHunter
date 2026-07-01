@@ -39,6 +39,44 @@ export interface FileRecord {
   created_at: string;
 }
 
+// ── Jobs domain ───────────────────────────────────────────────────────────────
+
+export interface ApplicationEvent {
+  id: string;
+  application_id: string;
+  event_type: string;
+  detail: string | null;
+  occurred_at: string;
+}
+
+export interface ApplicationFile {
+  id: string;          // files.id — download via /files/:id/download
+  filename: string;
+  mime_type: string | null;
+  size: string | null;
+  kind: string;        // cv | jd | cover
+}
+
+export interface Application {
+  id: string;
+  user_id: string | null;
+  company: string;
+  role: string;
+  location: string | null;
+  source: string | null;
+  job_url: string | null;
+  job_description: string | null;
+  status: string;
+  salary: string | null;
+  contact: string | null;
+  notes: string | null;
+  applied_at: string | null;
+  created_at: string;
+  updated_at: string;
+  events?: ApplicationEvent[];
+  files?: ApplicationFile[];
+}
+
 export interface ComponentResults {
   id?: string;
   name: string;

@@ -1,4 +1,4 @@
-# ManuSpine
+# manuHunter
 
 ![React](https://img.shields.io/badge/React-Ionic-61DAFB?logo=react&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=nodedotjs&logoColor=white)
@@ -7,9 +7,22 @@
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A full-stack SaaS framework for building data-driven web apps. Provides auth, a component-tree CMS, surveys, file storage, and a Python computation layer — all in one Docker stack.
+A job-search personal management app: track every application, its status and responses, and store the tailored CV you sent for each role. Built on the [manuSpine](https://github.com/mtc8608/manuSpine) full-stack template (React/Ionic, Node/GraphQL, PostgreSQL, MinIO, Python/FastAPI, Docker).
 
-Use it as a **GitHub Template** to bootstrap new apps.
+> **Fork of [mtc8608/manuSpine](https://github.com/mtc8608/manuSpine).** manuSpine is the reusable full-stack template; manuHunter is this specific application built on top of it. Framework-level fixes flow up to manuSpine; job-search features live here.
+
+---
+
+## What manuHunter adds
+
+A **jobs domain** on top of the template:
+
+- **Applications tracker** — one record per application with company, role, location, source, salary, contact, the pasted job description, and free-form notes.
+- **Status pipeline** — `draft → applied → screening → interview → offer / rejected / ghosted / withdrawn`, filterable in the list.
+- **CV artifact store** — attach the tailored CV (or cover letter / JD) to each application; files are stored in MinIO and downloadable per application.
+- **Response timeline** — log responses, interviews, and status changes against each application.
+
+Implemented as: `init-scripts/02-init-jobs.sql`, `nodejs/schema/resolvers/jobs/`, `nodejs/routes/jobs/`, and `pwa/src/pages/jobs/Applications.tsx`.
 
 ---
 
@@ -135,11 +148,23 @@ app.include_router(domain_router)
 
 ---
 
-## Template usage
+## Getting started
 
-1. Click **Use this template** on GitHub.
-2. Clone your new repo.
-3. Copy `.env.example` → `.env` and set your credentials.
-4. `./run` to start.
-5. Sign in at http://localhost:8100 with your `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
-6. Add your domain following the steps above.
+```bash
+git clone https://github.com/mtc8608-Org/manuHunter.git
+cd manuHunter
+cp .env.example .env          # set your credentials
+./run                         # start all services
+```
+
+Then sign in at http://localhost:8100 with your `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+
+## Relationship to manuSpine
+
+manuHunter is a fork of the [manuSpine](https://github.com/mtc8608/manuSpine) template. To pull framework updates from the parent:
+
+```bash
+git remote add upstream https://github.com/mtc8608/manuSpine.git
+git fetch upstream
+git merge upstream/main
+```

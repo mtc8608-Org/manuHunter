@@ -51,6 +51,9 @@ server.use('/api', require('./routes/framework/files'));
 server.use('/api', require('./routes/framework/content'));
 server.use('/api', require('./routes/framework/compute'));
 
+// [JOBS]
+server.use('/api', require('./routes/jobs/applications'));
+
 // ── Startup ───────────────────────────────────────────────────────────────────
 // Start listening immediately so the container is healthy, then seed the admin
 // user in the background with retries (postgres may not be ready yet).

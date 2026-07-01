@@ -22,7 +22,7 @@ import {
   documentTextOutline,
   constructOutline, folderOutline,
   personOutline, logOutOutline,
-  moonOutline, homeOutline,
+  moonOutline, homeOutline, briefcaseOutline,
 } from 'ionicons/icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -61,6 +61,11 @@ const Menu: React.FC = () => {
           <IonListHeader>Navigation</IonListHeader>
           {user && <IonNote>{user.email}</IonNote>}
           {navItem(ROUTE.LANDING, homeOutline, 'Home')}
+        </IonList>
+
+        <IonList>
+          <IonListHeader>Job Hunt</IonListHeader>
+          {navItem(ROUTE.APPLICATIONS, briefcaseOutline, 'Applications')}
         </IonList>
 
         <IonList>

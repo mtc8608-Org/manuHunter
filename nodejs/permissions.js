@@ -26,6 +26,15 @@ module.exports = {
     'me',
     'submitAnswer',
     'updateAnswer',
+    // [JOBS] — every user manages their own applications; resolvers scope by user_id
+    'applications',
+    'application',
+    'createApplication',
+    'updateApplication',
+    'deleteApplication',
+    'addApplicationEvent',
+    'linkApplicationFile',
+    'unlinkApplicationFile',
   ],
 
   // Everything else requires role === 'admin'.

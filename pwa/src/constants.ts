@@ -141,6 +141,37 @@ export const SURVEY_EDITOR_ID: Record<string, string> = {
 
 
 ///////////////////////////////////////////////////////////////////////////////
+// #region Jobs domain
+// Application status pipeline, in progression order. Colours map to Ionic
+// palette names used for the status badge.
+export const APP_STATUS = [
+  'draft', 'applied', 'screening', 'interview', 'offer', 'rejected', 'ghosted', 'withdrawn',
+] as const;
+
+export type AppStatus = (typeof APP_STATUS)[number];
+
+export const APP_STATUS_COLOR: Record<string, string> = {
+  draft:     'medium',
+  applied:   'primary',
+  screening: 'tertiary',
+  interview: 'secondary',
+  offer:     'success',
+  rejected:  'danger',
+  ghosted:   'warning',
+  withdrawn: 'dark',
+};
+
+// Kinds of artifact that can be attached to an application.
+export const APP_FILE_KINDS = [
+  { value: 'cv',    label: 'CV / Résumé'  },
+  { value: 'cover', label: 'Cover Letter' },
+  { value: 'jd',    label: 'Job Description' },
+] as const;
+// #endregion
+///////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////
 // #region API Configuration
 // Node.js backend service address. Change here if the port or host moves.
 // The backend reads its own port from .env (NODE_PORT); keep these in sync.
@@ -156,6 +187,7 @@ export const ENDPOINT = {
   FILES_UPLOAD:     '/files/upload',
   GENERATE_CONTENT: '/generate-content',
   SURVEY_EXPORT:    '/surveys',   // + `/${id}/stats/export`
+  APPLICATIONS:     '/applications',   // + `/${id}/files` for artifact upload
 } as const;
 // #endregion
 ///////////////////////////////////////////////////////////////////////////////
@@ -190,6 +222,14 @@ export const PANEL_CONFIG = {
     add: { enabled: true, label: 'Upload' },
     filter: { text: { enabled: true, placeholder: 'Search files…' }, type: { enabled: false } },
   },
+  APPLICATIONS_LIST: {
+    title: 'Applications', emptyMessage: 'No applications yet.',
+    add: { enabled: true, label: 'New' },
+    filter: {
+      text: { enabled: true, placeholder: 'Search company / role…' },
+      type: { enabled: true, options: APP_STATUS },
+    },
+  },
   CONTENT_PAGES: {
     title: 'Pages', emptyMessage: 'No pages yet.',
     add: { enabled: true, label: 'New Page' },
@@ -215,6 +255,7 @@ export const ROUTE = {
   LANDING:       '/',
   SIGNIN:        '/signin',
   ACCOUNT:       '/account',
+  APPLICATIONS:  '/folder/Applications',
   SURVEYS:       '/folder/Surveys',
   CONFIGURATION: '/folder/Configuration',
   FILES:         '/folder/Files',
@@ -229,6 +270,9 @@ export const ROUTE = {
 // #region Area Navigation
 // Left-sidebar nav items per authenticated area. Consumed by AreaShell.
 export const AREA_NAV = {
+  JOBS: [
+    { label: 'Applications', route: '/folder/Applications', icon: 'briefcase' },
+  ],
   SURVEYS: [
     { label: 'Surveys', route: '/folder/Surveys', icon: 'clipboard' },
   ],
@@ -241,6 +285,7 @@ export const AREA_NAV = {
 
 // Section groupings — used by AppHeader nav (authenticated users only)
 export const NAV_SECTIONS = [
+  { label: 'Applications', routes: ['/folder/Applications'],                                       link: '/folder/Applications',  icon: 'briefcase'  },
   { label: 'Surveys',    routes: ['/folder/Surveys'],                                             link: '/folder/Surveys',       icon: 'clipboard'  },
   { label: 'Backoffice', routes: ['/folder/Content', '/folder/Files', '/folder/Configuration'],   link: '/folder/Content',       icon: 'construct',  adminOnly: true },
 ] as const;

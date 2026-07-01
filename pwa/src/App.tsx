@@ -10,6 +10,7 @@ import AdminRoute from './components/routing/AdminRoute';
 import Landing from './pages/public/Landing';
 import SignIn from './pages/public/SignIn';
 import Account from './pages/Account';
+import Applications from './pages/jobs/Applications';
 import Surveys from './pages/surveys/Surveys';
 import Content from './pages/backoffice/Content';
 import Files from './pages/backoffice/Files';
@@ -51,8 +52,9 @@ const App: React.FC = () => {
                 <Route path={ROUTE.SIGNIN}  exact={true} component={SignIn} />
 
                 {/* Authenticated */}
-                <PrivateRoute path={ROUTE.ACCOUNT}  exact={true} component={Account} />
-                <PrivateRoute path={ROUTE.SURVEYS}  exact={true} component={Surveys} />
+                <PrivateRoute path={ROUTE.ACCOUNT}      exact={true} component={Account} />
+                <PrivateRoute path={ROUTE.APPLICATIONS} exact={true} component={Applications} />
+                <PrivateRoute path={ROUTE.SURVEYS}      exact={true} component={Surveys} />
 
                 {/* Admin only */}
                 <AdminRoute path={ROUTE.CONTENT}       exact={true} component={Content} />

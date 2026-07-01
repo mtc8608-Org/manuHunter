@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { createClient } from 'graphql-http';
 import { API_BASE, GQL_URL, ENDPOINT } from '../constants';
-import { ComponentResults, FileRecord, Survey, SurveyAnswer } from '../interfaces/types';
+import { Application, ComponentResults, FileRecord, Survey, SurveyAnswer } from '../interfaces/types';
 
 // ── Setup ────────────────────────────────────────────────────────────────────
 
@@ -397,6 +397,122 @@ const deleteFile = async (id: string) => {
   return res.json();
 };
 
+// ── applications (jobs domain) ─────────────────────────────────────────────────
+
+const APPLICATION_FIELDS = `
+  id user_id company role location source job_url job_description
+  status salary contact notes applied_at created_at updated_at
+`.trim();
+
+const APPLICATION_DETAIL_FIELDS = `
+  ${APPLICATION_FIELDS}
+  events { id event_type detail occurred_at }
+  files  { id filename mime_type size kind }
+`.trim();
+
+const getApplications = async (status?: string): Promise<Application[]> => {
+  try {
+    const result = await gql(`
+      query Applications($status: String) { applications(status: $status) { ${APPLICATION_FIELDS} } }
+    `, { status });
+    return result?.data?.applications ?? [];
+  } catch (e) { console.error('Error fetching applications:', e); return []; }
+};
+
+const getApplication = async (id: string): Promise<Application | null> => {
+  try {
+    const result = await gql(`
+      query Application($id: ID!) { application(id: $id) { ${APPLICATION_DETAIL_FIELDS} } }
+    `, { id });
+    return result?.data?.application ?? null;
+  } catch (e) { console.error('Error fetching application:', e); return null; }
+};
+
+const createApplication = async (input: Partial<Application>): Promise<Application | null> => {
+  try {
+    const result = await gql(`
+      mutation CreateApplication(
+        $company: String!, $role: String!, $location: String, $source: String,
+        $job_url: String, $job_description: String, $status: String,
+        $salary: String, $contact: String, $notes: String, $applied_at: String
+      ) {
+        createApplication(
+          company: $company, role: $role, location: $location, source: $source,
+          job_url: $job_url, job_description: $job_description, status: $status,
+          salary: $salary, contact: $contact, notes: $notes, applied_at: $applied_at
+        ) { ${APPLICATION_FIELDS} }
+      }
+    `, input);
+    return result?.data?.createApplication ?? null;
+  } catch (e) { console.error('Error creating application:', e); throw e; }
+};
+
+const updateApplication = async (id: string, input: Partial<Application>): Promise<Application | null> => {
+  try {
+    const result = await gql(`
+      mutation UpdateApplication(
+        $id: ID!, $company: String, $role: String, $location: String, $source: String,
+        $job_url: String, $job_description: String, $status: String,
+        $salary: String, $contact: String, $notes: String, $applied_at: String
+      ) {
+        updateApplication(
+          id: $id, company: $company, role: $role, location: $location, source: $source,
+          job_url: $job_url, job_description: $job_description, status: $status,
+          salary: $salary, contact: $contact, notes: $notes, applied_at: $applied_at
+        ) { ${APPLICATION_FIELDS} }
+      }
+    `, { id, ...input });
+    return result?.data?.updateApplication ?? null;
+  } catch (e) { console.error('Error updating application:', e); throw e; }
+};
+
+const deleteApplication = async (id: string) => {
+  try {
+    return await gql(`mutation DeleteApplication($id: ID!) { deleteApplication(id: $id) }`, { id });
+  } catch (e) { console.error('Error deleting application:', e); }
+};
+
+const addApplicationEvent = async (application_id: string, event_type: string, detail?: string) => {
+  try {
+    return await gql(`
+      mutation AddEvent($application_id: ID!, $event_type: String!, $detail: String) {
+        addApplicationEvent(application_id: $application_id, event_type: $event_type, detail: $detail) {
+          id event_type detail occurred_at
+        }
+      }
+    `, { application_id, event_type, detail });
+  } catch (e) { console.error('Error adding application event:', e); }
+};
+
+// Upload a tailored artifact and link it to the application in one call (REST).
+const uploadApplicationFile = async (applicationId: string, file: File, kind: string) => {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('kind', kind);
+  const res = await fetch(`${API_BASE}${ENDPOINT.APPLICATIONS}/${applicationId}/files`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const e = new Error((err as any).error ?? 'Upload failed') as Error & { status: number };
+    e.status = res.status;
+    throw e;
+  }
+  return res.json();
+};
+
+const unlinkApplicationFile = async (application_id: string, file_id: string) => {
+  try {
+    return await gql(`
+      mutation Unlink($application_id: ID!, $file_id: ID!) {
+        unlinkApplicationFile(application_id: $application_id, file_id: $file_id)
+      }
+    `, { application_id, file_id });
+  } catch (e) { console.error('Error unlinking application file:', e); }
+};
+
 // ── AI content generation ─────────────────────────────────────────────────────
 
 export interface GenMessage { role: 'user' | 'assistant'; content: string; }
@@ -465,6 +581,9 @@ const ApiService = {
   changePassword, getUsers, createUser, patchUser,
   // files
   getFiles, uploadFile, patchFile, deleteFile,
+  // applications (jobs domain)
+  getApplications, getApplication, createApplication, updateApplication, deleteApplication,
+  addApplicationEvent, uploadApplicationFile, unlinkApplicationFile,
   // AI content generation
   generateContent,
 };
