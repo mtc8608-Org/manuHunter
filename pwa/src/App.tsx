@@ -11,6 +11,9 @@ import Landing from './pages/public/Landing';
 import SignIn from './pages/public/SignIn';
 import Account from './pages/Account';
 import Applications from './pages/jobs/Applications';
+import Cv from './pages/cv/Cv';
+import GeneratedCvs from './pages/cv/GeneratedCvs';
+import CvTemplates from './pages/cv/CvTemplates';
 import Surveys from './pages/surveys/Surveys';
 import Content from './pages/backoffice/Content';
 import Files from './pages/backoffice/Files';
@@ -54,6 +57,9 @@ const App: React.FC = () => {
                 {/* Authenticated */}
                 <PrivateRoute path={ROUTE.ACCOUNT}      exact={true} component={Account} />
                 <PrivateRoute path={ROUTE.APPLICATIONS} exact={true} component={Applications} />
+                <PrivateRoute path={ROUTE.CV}           exact={true} component={Cv} />
+                <PrivateRoute path={ROUTE.GENERATED_CVS} exact={true} component={GeneratedCvs} />
+                <PrivateRoute path={ROUTE.CV_TEMPLATES}  exact={true} component={CvTemplates} />
                 <PrivateRoute path={ROUTE.SURVEYS}      exact={true} component={Surveys} />
 
                 {/* Admin only */}

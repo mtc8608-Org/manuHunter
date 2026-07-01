@@ -37,7 +37,7 @@ const gql = (query: string, variables?: Record<string, any>): Promise<any> =>
 
 // ── Component tree generics ───────────────────────────────────────────────────
 
-type Domain = 'app' | 'survey';
+type Domain = 'app' | 'survey' | 'cv';
 
 const TREE_FIELDS = `
   id name type data options
@@ -74,6 +74,19 @@ const OPS: Record<Domain, {
     link:        'createSurveyComponentRelation',
     unlink:      'deleteSurveyComponentRelation',
   },
+  cv: {
+    getOne:      'cvComponent',        getList:     'cvComponentList',
+    create:      'createCvComponent',  createInput: 'CvComponentInput',
+    update:      'updateCvComponent',  del:         'deleteCvComponent',
+    link:        'createCvRelation',
+    unlink:      'deleteCvRelation',
+  },
+};
+
+const SWAP_MUT: Record<Domain, string> = {
+  app:    'swapComponentPositions',
+  survey: 'swapSurveyComponentPositions',
+  cv:     'swapCvPositions',
 };
 
 const getComponentByName = async (name: string): Promise<ComponentResults | undefined> => {
@@ -161,7 +174,7 @@ const unlinkNodes = async (domain: Domain, parent_id: string, child_id: string) 
 };
 
 const swapNodes = async (domain: Domain, parent_id: string, child_id_a: string, child_id_b: string) => {
-  const mut = domain === 'app' ? 'swapComponentPositions' : 'swapSurveyComponentPositions';
+  const mut = SWAP_MUT[domain];
   try {
     return await gql(`
       mutation Swap($parent_id: ID!, $child_id_a: ID!, $child_id_b: ID!) {
@@ -513,6 +526,147 @@ const unlinkApplicationFile = async (application_id: string, file_id: string) =>
   } catch (e) { console.error('Error unlinking application file:', e); }
 };
 
+// ── CV builder (cv domain) ─────────────────────────────────────────────────────
+
+const getCvComponentList = (type?: string)                                                        => getNodeList('cv', type);
+const getCvComponent     = (id: string)                                                            => getNodeTree('cv', id);
+const createCvComponent  = (name: string, type: string, data: any, options: any, children: any)   => createNode('cv', name, type, data, options, children);
+const updateCvComponent  = (id: string, name: string, type: string, data: any, options: any)      => updateNode('cv', id, name, type, data, options);
+const deleteCvComponent  = (id: string)                                                            => deleteNode('cv', id);
+const createCvRelation   = (parent_id: string, child_id: string)                                   => linkNodes('cv', parent_id, child_id);
+const deleteCvRelation   = (parent_id: string, child_id: string)                                   => unlinkNodes('cv', parent_id, child_id);
+const swapCvPositions    = (parent_id: string, child_id_a: string, child_id_b: string)             => swapNodes('cv', parent_id, child_id_a, child_id_b);
+
+const getCvComponentParents = async (child_id: string): Promise<ComponentResults[]> => {
+  try {
+    const result = await gql(`
+      query CvComponentParents($child_id: ID!) {
+        cvComponentParents(child_id: $child_id) { id name type data options owner_id }
+      }
+    `, { child_id });
+    return result?.data?.cvComponentParents ?? [];
+  } catch (e) { console.error('Error fetching cv component parents:', e); return []; }
+};
+
+const getCvDocuments = async (): Promise<ComponentResults[]> => {
+  try {
+    const result = await gql(`query { cvDocumentList { id name type data options owner_id } }`);
+    return result?.data?.cvDocumentList ?? [];
+  } catch (e) { console.error('Error fetching cv documents:', e); return []; }
+};
+
+const getCvDocument = (id: string) => getCvComponent(id);
+
+const createCvDocument = async (name: string, data: any): Promise<ComponentResults | null> => {
+  try {
+    const result = await gql(`
+      mutation CreateCvDocument($name: String, $data: JSON) {
+        createCvDocument(name: $name, data: $data) { id name type data options owner_id }
+      }
+    `, { name, data });
+    return result?.data?.createCvDocument ?? null;
+  } catch (e) { console.error('Error creating cv document:', e); throw e; }
+};
+
+const updateCvDocument = async (id: string, data: any, name?: string): Promise<ComponentResults | null> => {
+  try {
+    const result = await gql(`
+      mutation UpdateCvDocument($id: ID!, $name: String, $data: JSON) {
+        updateCvDocument(id: $id, name: $name, data: $data) { id name type data options owner_id }
+      }
+    `, { id, name, data });
+    return result?.data?.updateCvDocument ?? null;
+  } catch (e) { console.error('Error updating cv document:', e); throw e; }
+};
+
+const deleteCvDocument = async (id: string) => {
+  try {
+    return await gql(`mutation DeleteCvDocument($id: ID!) { deleteCvDocument(id: $id) }`, { id });
+  } catch (e) { console.error('Error deleting cv document:', e); }
+};
+
+export interface CvProfile { owner_id: string | null; data: Record<string, any>; }
+
+// The caller's per-user identity block (name, phone, socials, location).
+const getCvProfile = async (): Promise<CvProfile | null> => {
+  try {
+    const result = await gql(`query { cvProfile { owner_id data } }`);
+    return result?.data?.cvProfile ?? null;
+  } catch (e) { console.error('Error fetching cv profile:', e); return null; }
+};
+
+const upsertCvProfile = async (data: Record<string, any>): Promise<CvProfile | null> => {
+  try {
+    const result = await gql(`
+      mutation UpsertCvProfile($data: JSON) {
+        upsertCvProfile(data: $data) { owner_id data }
+      }`, { data });
+    return result?.data?.upsertCvProfile ?? null;
+  } catch (e) { console.error('Error saving cv profile:', e); throw e; }
+};
+
+export interface CvArtifact {
+  id: string; cv_component_id: string | null; file_id: string; label: string | null;
+  created_at: string; filename: string; mime_type: string | null; size: string | null;
+}
+
+const getCvArtifacts = async (): Promise<CvArtifact[]> => {
+  try {
+    const result = await gql(`
+      query { cvArtifactList {
+        id cv_component_id file_id label created_at filename mime_type size
+      } }
+    `);
+    return result?.data?.cvArtifactList ?? [];
+  } catch (e) { console.error('Error fetching cv artifacts:', e); return []; }
+};
+
+// Compile the assembled CV and return the PDF as a Blob for the preview viewer.
+const compileCv = async (id: string): Promise<Blob> => {
+  const res = await fetch(`${API_BASE}${ENDPOINT.CV}/${id}/compile`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const e = new Error((err as any).error ?? 'Compilation failed') as Error & { log?: string };
+    e.log = (err as any).log;
+    throw e;
+  }
+  return res.blob();
+};
+
+// Compile and persist the PDF as a cv_artifacts row; returns the artifact.
+const saveCvPdf = async (id: string, label?: string): Promise<CvArtifact> => {
+  const res = await fetch(`${API_BASE}${ENDPOINT.CV}/${id}/save-pdf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+    body: JSON.stringify({ label }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const e = new Error((err as any).error ?? 'Save failed') as Error & { log?: string };
+    e.log = (err as any).log;
+    throw e;
+  }
+  return res.json();
+};
+
+const fetchCvArtifactBlob = async (id: string): Promise<Blob> => {
+  const res = await fetch(`${API_BASE}${ENDPOINT.CV}/artifacts/${id}/download`, { headers: getAuthHeader() });
+  if (!res.ok) throw new Error('Download failed');
+  return res.blob();
+};
+
+const deleteCvArtifact = async (id: string) => {
+  const res = await fetch(`${API_BASE}${ENDPOINT.CV}/artifacts/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeader(),
+  });
+  if (!res.ok) throw new Error('Delete failed');
+  return res.json();
+};
+
 // ── AI content generation ─────────────────────────────────────────────────────
 
 export interface GenMessage { role: 'user' | 'assistant'; content: string; }
@@ -584,6 +738,12 @@ const ApiService = {
   // applications (jobs domain)
   getApplications, getApplication, createApplication, updateApplication, deleteApplication,
   addApplicationEvent, uploadApplicationFile, unlinkApplicationFile,
+  // cv builder
+  getCvComponentList, getCvComponent, createCvComponent, updateCvComponent, deleteCvComponent,
+  createCvRelation, deleteCvRelation, swapCvPositions, getCvComponentParents,
+  getCvDocuments, getCvDocument, createCvDocument, updateCvDocument, deleteCvDocument,
+  getCvProfile, upsertCvProfile,
+  getCvArtifacts, compileCv, saveCvPdf, fetchCvArtifactBlob, deleteCvArtifact,
   // AI content generation
   generateContent,
 };

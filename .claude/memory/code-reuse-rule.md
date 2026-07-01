@@ -19,7 +19,8 @@ Always reuse existing components. Only create a new component if you need genuin
 
 Decision guide (the single right choice for each need):
 - Split-layout page → `SplitPageLayout` (wraps IonPage, AppHeader, AreaShell, Grid). Never hand-roll that boilerplate.
-- Tab bar on either column → `TabPanel` (always renders the segment bar, even for one tab).
+- Left-sidebar area nav (`SplitPageLayout` `navItems`) → one shared `AREA_NAV.<AREA>` list per area (like `AREA_NAV.BACKOFFICE`). Every page in the area passes the *same* list in the *same* order. Adding a page to an existing area reuses that area's list — never define a second per-page variant with the items reordered, or the sidebar reshuffles as you navigate between the area's pages (this is what a duplicated `AREA_NAV.JOBS` + `AREA_NAV.CV` caused).
+- Both columns of `SplitPageLayout` are *always* a `TabPanel` — the left via `leftTabs` (see [[page-template-rules]]), the right by passing `right={<TabPanel tabs={[...]} />}`. This is unconditional: a column with a single view is still a one-tab `TabPanel` (`<TabPanel tabs={[{ label: 'Detail'|'Preview', content }]} />`), never a bare fragment, `<IonCard>`, or raw node. `TabPanel` always renders the segment bar, even for one tab. (GeneratedCvs' right column was first written as a bare fragment — inconsistent with every other page.)
 - "Create item" button on a list → `onAdd` on `ResourcePanel`, always, without exception. Never via `rightHeader`.
 - Page-level controls above the right column → `rightHeader` (bulk ops, mode toggles, save state), never for creating list items.
 - Tab-specific buttons → `actions` on the relevant `TabDef`.
@@ -28,6 +29,7 @@ Decision guide (the single right choice for each need):
 - Any DB-backed list (sidebar, tab, or modal) → `ResourcePanel` with `fetcher` + `refreshToken`.
 - Pick one item from the DB in a modal → `ModalShell` + `ResourcePanel` (no `onDelete`/`onAdd`) + confirm button. Never `IonSelect`/`IonRadioGroup`/hand-rolled list.
 - Tabular data from any source → `DataTable` (source-agnostic `fetcher`).
+- Display/preview a PDF (compiled or fetched) → `PdfViewer` (feed it a `Blob` or a `src` URL; it owns the object-URL lifecycle and falls back to `EmptyState`). Never hand-roll an `<iframe>`/`<embed>` + `URL.createObjectURL`.
 - Configurable DB-driven form → `FormRenderer` (`mode='app'` dot-path keys, `mode='survey'` UUID keys). Add/edit modals use seeded form trees fetched by UUID, never bespoke field-state + conditional JSX.
 - Tree add/edit/delete/reorder → `TreeEditor`. Never hand-roll add/edit/delete modal logic in a page.
 - Guard a route → `PrivateRoute` or `AdminRoute`.

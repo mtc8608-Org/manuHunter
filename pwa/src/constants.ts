@@ -172,6 +172,59 @@ export const APP_FILE_KINDS = [
 
 
 ///////////////////////////////////////////////////////////////////////////////
+// #region CV builder
+// Node types stored in cv_components.type (separate table from `components`).
+// Rendered to LaTeX by the Node assembler; there is no on-screen renderer — the
+// preview is the compiled PDF. Source of truth: init-scripts/03-init-cv.sql.
+export const CV_TYPE = {
+  TEMPLATE:    'cvTemplate',
+  DOCUMENT:    'cvDocument',
+  SECTION:     'cvSection',
+  TEXTROW:     'cvTextRow',
+  ENTRY:       'cvEntry',
+  PUBLICATION: 'cvPublication',
+} as const;
+
+// Editor form (in the `components` table) per CV node type — fetched by name and
+// passed to FormRenderer in the add/edit modals. Source: 03-init-cv.sql cf00 range.
+export const CV_EDITOR_ID: Record<string, string> = {
+  [CV_TYPE.SECTION]:     'form_cv_section',
+  [CV_TYPE.TEXTROW]:     'form_cv_textrow',
+  [CV_TYPE.ENTRY]:       'form_cv_entry',
+  [CV_TYPE.PUBLICATION]: 'form_cv_publication',
+  [CV_TYPE.TEMPLATE]:    'form_cv_template',
+  [CV_TYPE.DOCUMENT]:    'form_cv_document',
+};
+
+// Standalone forms used directly by the CV page.
+export const CV_FORM = {
+  DOCUMENT: 'form_cv_document',   // per-CV details (title / tagline / template) + New CV modal
+  PROFILE:  'form_cv_profile',    // per-user identity block (name / phone / socials)
+  TEMPLATE: 'form_cv_template',
+} as const;
+
+// The shared default template (owner_id NULL). UUID hardcoded from the seed.
+export const CV_DEFAULT_TEMPLATE_ID = 'c51c1e5f-5cc1-4b77-8832-2d10cc97c000';
+
+// Leaf atoms (everything a section can hold).
+export const CV_LEAF_TYPES = new Set<string>([
+  CV_TYPE.TEXTROW, CV_TYPE.ENTRY, CV_TYPE.PUBLICATION,
+]);
+
+// Types offered in the TreeEditor add modal. A document holds sections; a section
+// holds leaves. The union is offered for both (the assembler ignores mis-placed
+// nodes); pick Section on a document, or a leaf on a section.
+export const CV_ADDABLE_TYPES = [
+  { value: CV_TYPE.SECTION,     label: 'Section'     },
+  { value: CV_TYPE.ENTRY,       label: 'Entry'       },
+  { value: CV_TYPE.TEXTROW,     label: 'Text Row'    },
+  { value: CV_TYPE.PUBLICATION, label: 'Publication' },
+];
+// #endregion
+///////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////
 // #region API Configuration
 // Node.js backend service address. Change here if the port or host moves.
 // The backend reads its own port from .env (NODE_PORT); keep these in sync.
@@ -188,6 +241,7 @@ export const ENDPOINT = {
   GENERATE_CONTENT: '/generate-content',
   SURVEY_EXPORT:    '/surveys',   // + `/${id}/stats/export`
   APPLICATIONS:     '/applications',   // + `/${id}/files` for artifact upload
+  CV:               '/cv',        // + `/${id}/compile`, `/${id}/save-pdf`, `/artifacts/${id}`
 } as const;
 // #endregion
 ///////////////////////////////////////////////////////////////////////////////
@@ -243,6 +297,29 @@ export const PANEL_CONFIG = {
       type: { enabled: true, options: ['contentHtml', 'contentImage', 'contentHtmlImage', 'contentLatex'] },
     },
   },
+  CV_DOCUMENTS: {
+    title: 'CVs', emptyMessage: 'No CVs yet.',
+    add: { enabled: true, label: 'New CV' },
+    filter: { text: { enabled: false }, type: { enabled: false } },
+  },
+  CV_LIBRARY: {
+    title: 'Library', emptyMessage: 'No sections match.',
+    add: { enabled: false, label: '' },
+    filter: {
+      text: { enabled: true, placeholder: 'Search library…' },
+      type: { enabled: true, options: ['cvSection', 'cvEntry', 'cvTextRow', 'cvPublication'] },
+    },
+  },
+  CV_ARTIFACTS: {
+    title: 'Generated PDFs', emptyMessage: 'No generated CVs yet.',
+    add: { enabled: false, label: '' },
+    filter: { text: { enabled: false }, type: { enabled: false } },
+  },
+  CV_TEMPLATES: {
+    title: 'Templates', emptyMessage: 'No templates yet.',
+    add: { enabled: true, label: 'New template' },
+    filter: { text: { enabled: false }, type: { enabled: false } },
+  },
 } as const satisfies Record<string, PanelConfig>;
 // #endregion
 ///////////////////////////////////////////////////////////////////////////////
@@ -256,6 +333,9 @@ export const ROUTE = {
   SIGNIN:        '/signin',
   ACCOUNT:       '/account',
   APPLICATIONS:  '/folder/Applications',
+  CV:            '/folder/CVs',
+  GENERATED_CVS: '/folder/GeneratedCVs',
+  CV_TEMPLATES:  '/folder/Templates',
   SURVEYS:       '/folder/Surveys',
   CONFIGURATION: '/folder/Configuration',
   FILES:         '/folder/Files',
@@ -270,8 +350,15 @@ export const ROUTE = {
 // #region Area Navigation
 // Left-sidebar nav items per authenticated area. Consumed by AreaShell.
 export const AREA_NAV = {
-  JOBS: [
-    { label: 'Applications', route: '/folder/Applications', icon: 'briefcase' },
+  // Two distinct areas: job applications, and the CV builder. Each area is one
+  // shared list used by all its pages, in the same order (see [[code-reuse-rule]]).
+  APPLICATIONS: [
+    { label: 'Applications',   route: '/folder/Applications', icon: 'briefcase' },
+  ],
+  CV_BUILDER: [
+    { label: 'CVs',            route: '/folder/CVs',          icon: 'document-text' },
+    { label: 'Generated CVs',  route: '/folder/GeneratedCVs', icon: 'download' },
+    { label: 'Templates',      route: '/folder/Templates',    icon: 'layers-outline' },
   ],
   SURVEYS: [
     { label: 'Surveys', route: '/folder/Surveys', icon: 'clipboard' },
@@ -285,7 +372,8 @@ export const AREA_NAV = {
 
 // Section groupings — used by AppHeader nav (authenticated users only)
 export const NAV_SECTIONS = [
-  { label: 'Applications', routes: ['/folder/Applications'],                                       link: '/folder/Applications',  icon: 'briefcase'  },
+  { label: 'Applications', routes: ['/folder/Applications'],                                          link: '/folder/Applications',  icon: 'briefcase'  },
+  { label: 'CV Builder',   routes: ['/folder/CVs', '/folder/GeneratedCVs', '/folder/Templates'],      link: '/folder/CVs',           icon: 'document-text' },
   { label: 'Surveys',    routes: ['/folder/Surveys'],                                             link: '/folder/Surveys',       icon: 'clipboard'  },
   { label: 'Backoffice', routes: ['/folder/Content', '/folder/Files', '/folder/Configuration'],   link: '/folder/Content',       icon: 'construct',  adminOnly: true },
 ] as const;

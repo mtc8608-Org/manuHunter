@@ -14,6 +14,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { ComponentResults } from '../../interfaces/types';
 import { DEFAULT_COLOR } from '../../constants';
 import RichTextEditor from './RichTextEditor';
+import CodeEditor from './CodeEditor';
 import ImagePicker from './ImagePicker';
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -87,6 +88,8 @@ const FormRenderer: React.FC<FormRendererProps> = ({
       case 'color':    return renderColor(node, key, parentId);
       case 'date':     return renderDate(node, key, parentId);
       case 'textarea':   return renderTextarea(node, key, parentId);
+      case 'code':       return renderCode(node, key, parentId);
+      case 'lines':      return renderLines(node, key, parentId);
       case 'richtext':   return renderRichText(node, key, parentId);
       case 'filepicker': return renderFilepicker(node, key, parentId);
       case 'check':      return renderCheck(node, key, parentId);
@@ -201,6 +204,47 @@ const FormRenderer: React.FC<FormRendererProps> = ({
             placeholder={node.options?.placeholder ?? ''}
             value={field.value ?? ''}
             onIonInput={e => field.onChange(e.detail.value)}
+            onIonBlur={field.onBlur}
+            autoGrow
+          />
+        )}
+      />
+      {isEditing && editButtons(node, parentId)}
+    </IonItem>
+  );
+
+  // `code` — a collapsible, syntax-highlighted LaTeX editor (see CodeEditor).
+  const renderCode = (node: ComponentResults, key: string, parentId: string) => (
+    <div key={node.id ?? node.name} style={{ paddingInline: 4 }}>
+      <Controller
+        name={key}
+        control={control}
+        render={({ field }) => (
+          <CodeEditor
+            label={node.data?.text}
+            value={field.value ?? ''}
+            onChange={field.onChange}
+          />
+        )}
+      />
+      {isEditing && editButtons(node, parentId)}
+    </div>
+  );
+
+  // `lines` — edit a string[] as a multi-line textarea (one item per line).
+  // Stores an array so consumers (e.g. the CV assembler bullets) keep their shape.
+  const renderLines = (node: ComponentResults, key: string, parentId: string) => (
+    <IonItem key={node.id ?? node.name}>
+      <Controller
+        name={key}
+        control={control}
+        render={({ field }) => (
+          <IonTextarea
+            label={node.data?.text}
+            labelPlacement="stacked"
+            placeholder={node.options?.placeholder ?? 'One per line'}
+            value={Array.isArray(field.value) ? field.value.join('\n') : (field.value ?? '')}
+            onIonInput={e => field.onChange((e.detail.value ?? '').split('\n'))}
             onIonBlur={field.onBlur}
             autoGrow
           />

@@ -3,8 +3,6 @@ const express  = require('express');
 const jwt      = require('jsonwebtoken');
 const bcrypt   = require('bcryptjs');
 const cors     = require('cors');
-const fs       = require('fs');
-const path     = require('path');
 const { pool, minioClient, BUCKET } = require('./db');
 const { handler: graphqlHandler }   = require('./schema');
 
@@ -54,6 +52,9 @@ server.use('/api', require('./routes/framework/compute'));
 // [JOBS]
 server.use('/api', require('./routes/jobs/applications'));
 
+// [CV]
+server.use('/api', require('./routes/cv/compile'));
+
 // ── Startup ───────────────────────────────────────────────────────────────────
 // Start listening immediately so the container is healthy, then seed the admin
 // user in the background with retries (postgres may not be ready yet).
@@ -76,49 +77,40 @@ server.listen(PORT, () => console.log('Server running on PORT http://localhost:'
         console.log('-> Users table already populated, skipping seed');
       }
 
-      // ── MinIO bucket + content image seed ─────────────────────────────────
+      // ── CV seed ownership ─────────────────────────────────────────────────
+      // The sample CV library + documents are seeded with owner_id NULL because
+      // the admin row does not exist when init scripts run on a fresh volume.
+      // Claim every non-template CV node for the admin so it is not globally
+      // visible (the default cvTemplate stays NULL → shared with all users).
+      // Idempotent: users never create NULL-owned nodes, so this only ever
+      // matches the untouched seeds.
+      try {
+        const adminRes = await pool.query('SELECT id FROM users WHERE email = $1', [process.env.ADMIN_EMAIL]);
+        const adminId  = adminRes.rows[0]?.id;
+        if (adminId) {
+          const stamped = await pool.query(
+            `UPDATE cv_components SET owner_id = $1 WHERE owner_id IS NULL AND type <> 'cvTemplate'`,
+            [adminId]
+          );
+          if (stamped.rowCount) console.log(`-> Stamped ${stamped.rowCount} seed CV node(s) to admin`);
+          // Same claim for the seed identity profile (owner_id NULL until now).
+          const prof = await pool.query(
+            `UPDATE cv_profile SET owner_id = $1 WHERE owner_id IS NULL`,
+            [adminId]
+          );
+          if (prof.rowCount) console.log('-> Stamped seed CV profile to admin');
+        }
+      } catch (cvErr) {
+        console.warn('-> CV seed ownership warning:', cvErr.message);
+      }
+
+      // ── MinIO bucket ──────────────────────────────────────────────────────
       try {
         const bucketExists = await minioClient.bucketExists(BUCKET);
         if (!bucketExists) await minioClient.makeBucket(BUCKET);
         console.log('-> MinIO bucket ready:', BUCKET);
-
-        // Any .png under /public (recursive, except favicon.png) is seeded
-        // under key seed-<basename>. The seed SQL references these stable keys
-        // so content images survive a DB reset.
-        const SKIP_PNGS = new Set(['favicon.png']);
-        const PNG_MIME  = 'image/png';
-        const getAllPngs = (dir) => {
-          if (!fs.existsSync(dir)) return [];
-          const entries = fs.readdirSync(dir, { withFileTypes: true });
-          const results = [];
-          for (const e of entries) {
-            const full = path.join(dir, e.name);
-            if (e.isDirectory()) results.push(...getAllPngs(full));
-            else if (e.isFile() && e.name.endsWith('.png') && !SKIP_PNGS.has(e.name)) results.push(full);
-          }
-          return results;
-        };
-        const pngPaths = getAllPngs('/public');
-        for (const filePath of pngPaths) {
-          const filename     = path.basename(filePath);
-          const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-          const key          = `seed-${safeFilename}`;
-          let exists = false;
-          try { await minioClient.statObject(BUCKET, key); exists = true; } catch (_) {}
-          if (!exists) {
-            const buf = fs.readFileSync(filePath);
-            await minioClient.putObject(BUCKET, key, buf, buf.length, { 'Content-Type': PNG_MIME });
-            await pool.query(
-              `INSERT INTO files (bucket, key, filename, mime_type, size, description)
-               VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (bucket, key) DO NOTHING`,
-              [BUCKET, key, filename, PNG_MIME, buf.length, 'Seeded content image']
-            );
-            console.log(`-> Seeded content image: ${key}`);
-          }
-        }
-        console.log(`-> Content image seed done (${pngPaths.length} files checked)`);
       } catch (minioErr) {
-        console.warn('-> MinIO seed warning:', minioErr.message);
+        console.warn('-> MinIO bucket warning:', minioErr.message);
       }
       break;
     } catch (e) {

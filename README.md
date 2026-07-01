@@ -26,18 +26,6 @@ Implemented as: `init-scripts/02-init-jobs.sql`, `nodejs/schema/resolvers/jobs/`
 
 ---
 
-## Screenshots
-
-| Sign In | Surveys | Content |
-|---------|---------|---------|
-| ![Sign In](pwa/public/screenshots/app-signin.png) | ![Surveys](pwa/public/screenshots/app-surveys-questions.png) | ![Content](pwa/public/screenshots/app-content-build.png) |
-
-| Stats | Files | Config |
-|-------|-------|--------|
-| ![Stats](pwa/public/screenshots/app-surveys-stats.png) | ![Files](pwa/public/screenshots/app-files.png) | ![Config](pwa/public/screenshots/app-config.png) |
-
----
-
 ## What's included
 
 | Layer | Tech | Purpose |

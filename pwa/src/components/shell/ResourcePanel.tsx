@@ -184,14 +184,15 @@ function ResourcePanel<T extends { id: string }>({
               >
                 {getIcon?.(item) && <IonIcon slot="start" icon={getIcon!(item)} />}
                 <IonLabel>
-                  {getSubLabel ? (
-                    <>
-                      <p style={{ margin: 0 }}>{getLabel(item)}</p>
-                      <p style={{ margin: 0, fontSize: 12, color: 'var(--ion-color-medium)' }}>
-                        {getSubLabel(item)}
-                      </p>
-                    </>
-                  ) : getLabel(item)}
+                  {(() => {
+                    const sub = getSubLabel?.(item);
+                    return sub ? (
+                      <>
+                        <p style={{ margin: 0 }}>{getLabel(item)}</p>
+                        <p style={{ margin: 0, fontSize: 12, color: 'var(--ion-color-medium)' }}>{sub}</p>
+                      </>
+                    ) : getLabel(item);
+                  })()}
                 </IonLabel>
                 {getBadge?.(item) && (() => {
                   const badge = getBadge!(item);

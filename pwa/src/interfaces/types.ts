@@ -83,6 +83,7 @@ export interface ComponentResults {
   type: string;
   data: any;
   options: any;
+  owner_id?: string;   // set on owner-scoped domains (e.g. cv_components); absent elsewhere
   children?: any;
 }
 

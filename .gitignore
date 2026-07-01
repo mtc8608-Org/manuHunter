@@ -47,6 +47,10 @@ htmlcov/
 # ── Database & persistent storage ────────────────────────────
 .persist/
 
+# ── Personal CV seed (schema/template stay in 03-init-cv.sql; this holds
+#    the real CV content — name, contacts, publications) ──────────────────
+init-scripts/seed-cv-samples.sql
+
 # ── Claude Code ──────────────────────────────────────────────
 # Ignore personal/machine config (settings.local.json, etc.),
 # but share the curated memory knowledge base so others can grasp

@@ -4,6 +4,7 @@
 
 - [ManuLab context](manulab-context.md) — ManuSpine is the OSS framework manuHunter forks; body-analogy app family (ManuSkin/Lobe/Pulse/Beat/Cortex); the bigger federated-research vision
 - [Framework upstream](framework-upstream.md) — manuSpine is upstream; pull framework updates with `git fetch upstream && git merge upstream/master`, never cherry-pick
+- [Framework upstream candidates](framework-upstream-candidates.md) — running list of generic changes to push back to manuSpine (FormRenderer `lines` type, PDF viewer, BuildKit apt cache mount)
 - [Copy from original project](copy-from-original-project.md) — check `/home/cabsman/Documents/cabeleira.net/` before implementing anything; includes the MinIO + files table content-image seeding pattern
 - [Never run ./run](never-run.md) — never execute ./run/docker yourself; always end by stating which ./run command the user must run
 - [Sibling apps](sibling-apps.md) — pointers to manuSpine and manuBeat memory (bedside telemetry, cardio port, manuEdge Pi agent) and reusable framework takeaways

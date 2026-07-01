@@ -23,6 +23,7 @@ import {
   constructOutline, folderOutline,
   personOutline, logOutOutline,
   moonOutline, homeOutline, briefcaseOutline,
+  downloadOutline, layersOutline,
 } from 'ionicons/icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -64,8 +65,15 @@ const Menu: React.FC = () => {
         </IonList>
 
         <IonList>
-          <IonListHeader>Job Hunt</IonListHeader>
+          <IonListHeader>Applications</IonListHeader>
           {navItem(ROUTE.APPLICATIONS, briefcaseOutline, 'Applications')}
+        </IonList>
+
+        <IonList>
+          <IonListHeader>CV Builder</IonListHeader>
+          {navItem(ROUTE.CV, documentTextOutline, 'CVs')}
+          {navItem(ROUTE.GENERATED_CVS, downloadOutline, 'Generated CVs')}
+          {navItem(ROUTE.CV_TEMPLATES, layersOutline, 'Templates')}
         </IonList>
 
         <IonList>

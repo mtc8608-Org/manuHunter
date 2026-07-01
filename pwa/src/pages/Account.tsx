@@ -8,6 +8,9 @@ import {
 } from '@ionic/react';
 import ApiService from '../services/Api';
 import AppHeader from '../components/shell/AppHeader';
+import FormRenderer from '../components/forms/FormRenderer';
+import { ComponentResults } from '../interfaces/types';
+import { CV_FORM } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 
 interface User {
@@ -49,6 +52,23 @@ const Account: React.FC = () => {
     } finally {
       setPwSaving(false);
     }
+  };
+
+  // ── CV identity profile (shared by every CV the user builds) ──────────────────
+  const [cvProfileForm, setCvProfileForm] = useState<ComponentResults | null>(null);
+  const [cvProfileData, setCvProfileData] = useState<Record<string, any>>({});
+  const [cvProfileMsg, setCvProfileMsg]   = useState('');
+
+  useEffect(() => {
+    ApiService.getComponentByName(CV_FORM.PROFILE).then(f => setCvProfileForm((f ?? null) as ComponentResults | null));
+    ApiService.getCvProfile().then(p => setCvProfileData(p?.data ?? {}));
+  }, []);
+
+  const handleSaveCvProfile = async (values: any) => {
+    setCvProfileMsg('');
+    const saved = await ApiService.upsertCvProfile(values);
+    setCvProfileData(saved?.data ?? values);
+    setCvProfileMsg('Identity saved. It applies to every CV on next compile.');
   };
 
   // ── user management (admin only) ─────────────────────────────────────────────
@@ -129,6 +149,29 @@ const Account: React.FC = () => {
                       <p style={{ textTransform: 'capitalize' }}>{user?.role}</p>
                     </IonLabel>
                   </IonItem>
+                </IonCardContent>
+              </IonCard>
+
+              {/* ── CV identity ───────────────────────────────────── */}
+              <IonCard style={{ marginTop: 12 }}>
+                <IonCardHeader>
+                  <IonCardTitle>CV Identity</IonCardTitle>
+                </IonCardHeader>
+                <IonCardContent>
+                  <IonItem lines="none">
+                    <IonLabel style={{ whiteSpace: 'normal', fontSize: 13, color: 'var(--ion-color-medium)' }}>
+                      Name, contact and links used on every CV you build. Only the per-CV tagline is set in the CV builder.
+                    </IonLabel>
+                  </IonItem>
+                  {cvProfileMsg && <IonItem lines="none"><IonText color="success" style={{ fontSize: 13 }}>{cvProfileMsg}</IonText></IonItem>}
+                  {cvProfileForm && (
+                    <FormRenderer
+                      component={cvProfileForm}
+                      defaultValues={cvProfileData}
+                      onSubmit={handleSaveCvProfile}
+                      submitLabel="Save Identity"
+                    />
+                  )}
                 </IonCardContent>
               </IonCard>
 

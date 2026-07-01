@@ -233,7 +233,7 @@ INSERT INTO survey_components_relationships (parent_id, child_id, position) VALU
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97e013', 'c51c1e5f-5cc1-4b77-8832-2d10cc97e019',  6)
 ON CONFLICT DO NOTHING;
 
--- Hardcoded UUID so seed-sample-surveys.sql can reference the survey by ID.
+-- Hardcoded UUID so the survey can be referenced by ID.
 INSERT INTO surveys (id, component_id, title)
 VALUES ('c51c1e5f-5cc1-4b77-8832-2d10cc97f000', 'c51c1e5f-5cc1-4b77-8832-2d10cc97e000', 'Patient Registration')
 ON CONFLICT (id) DO NOTHING;

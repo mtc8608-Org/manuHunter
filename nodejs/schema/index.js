@@ -10,6 +10,9 @@ const userResolvers      = require('./resolvers/framework/users');
 // [JOBS]
 const applicationResolvers = require('./resolvers/jobs/applications');
 
+// [CV]
+const cvResolvers = require('./resolvers/cv/documents');
+
 const Query = new GraphQLObjectType({
   name: 'Query',
   fields: {
@@ -17,6 +20,7 @@ const Query = new GraphQLObjectType({
     ...surveyResolvers.queries,
     ...userResolvers.queries,
     ...applicationResolvers.queries,
+    ...cvResolvers.queries,
   },
 });
 
@@ -26,6 +30,7 @@ const Mutation = new GraphQLObjectType({
     ...componentResolvers.mutations,
     ...surveyResolvers.mutations,
     ...applicationResolvers.mutations,
+    ...cvResolvers.mutations,
   },
 });
 

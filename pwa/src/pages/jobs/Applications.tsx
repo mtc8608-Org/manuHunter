@@ -207,8 +207,8 @@ const Applications: React.FC = () => {
 
   return (
     <SplitPageLayout
-      navItems={AREA_NAV.JOBS}
-      title="Job Hunt"
+      navItems={AREA_NAV.APPLICATIONS}
+      title="Applications"
       leftTabs={[{
         label: 'Applications',
         content: (

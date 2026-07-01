@@ -11,6 +11,7 @@ const {
 const { fetchChildren } = require('./helpers/components');
 const { fetchSurveyChildren } = require('./helpers/survey');
 const { fetchApplicationEvents, fetchApplicationFiles } = require('./helpers/jobs');
+const { fetchCvChildren } = require('./helpers/cv');
 
 const GraphQLJSON = new GraphQLScalarType({
   name: 'JSON',
@@ -171,11 +172,71 @@ const ApplicationType = new GraphQLObjectType({
   }),
 });
 
+// ── CV domain ───────────────────────────────────────────────────────────────
+
+const CvComponentType = new GraphQLObjectType({
+  name: 'CvComponent',
+  fields: () => ({
+    id:       { type: GraphQLID },
+    name:     { type: GraphQLString },
+    type:     { type: GraphQLString },
+    data:     { type: GraphQLJSON },
+    options:  { type: GraphQLJSON },
+    owner_id: { type: GraphQLID },
+    children: {
+      type: new GraphQLList(CvComponentType),
+      resolve: (parent) => fetchCvChildren(parent),
+    },
+  }),
+});
+
+const CvComponentInputType = new GraphQLInputObjectType({
+  name: 'CvComponentInput',
+  fields: () => ({
+    name:     { type: new GraphQLNonNull(GraphQLString) },
+    type:     { type: GraphQLString },
+    data:     { type: GraphQLJSON },
+    options:  { type: GraphQLJSON },
+    children: { type: new GraphQLList(CvComponentInputType) },
+  }),
+});
+
+// A generated CV PDF, backed by cv_artifacts joined to its files row.
+// Download via GET /api/cv/artifacts/:id/download using `id`.
+const CvArtifactType = new GraphQLObjectType({
+  name: 'CvArtifact',
+  fields: () => ({
+    id:              { type: GraphQLID },
+    cv_component_id: { type: GraphQLID },
+    file_id:         { type: GraphQLID },
+    owner_id:        { type: GraphQLID },
+    label:           { type: GraphQLString },
+    created_at:      { type: GraphQLString },
+    filename:        { type: GraphQLString },
+    mime_type:       { type: GraphQLString },
+    size:            { type: GraphQLString },
+  }),
+});
+
+// The per-user identity block (cv_profile). Its `data` holds name, phone,
+// email, location and social links, shared across all of the user's CVs.
+const CvProfileType = new GraphQLObjectType({
+  name: 'CvProfile',
+  fields: () => ({
+    owner_id: { type: GraphQLID },
+    data:     { type: GraphQLJSON },
+  }),
+});
+
 module.exports = {
   GraphQLJSON,
   ApplicationType,
   ApplicationEventType,
   ApplicationFileType,
+  CvComponentType,
+  CvComponentInputType,
+  CvArtifactType,
+  CvProfileType,
   SurveyType,
   SurveyAnswerType,
   SurveyComponentType,

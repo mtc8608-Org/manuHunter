@@ -21,7 +21,6 @@ services:
     env_file: .env
     volumes:
       - ./nodejs:/src
-      - ./pwa/public:/public:ro
     ports:
       - 0.0.0.0:${NODE_PORT}:3000
     depends_on:
