@@ -29,6 +29,28 @@ were made here first (during CV builder work); port them to manuSpine when conve
   Now a proper shell component (the CV page uses it) and listed in [[code-reuse-rule]]. Lift
   into manuSpine's shell library as-is — no CV/domain coupling.
 
+- **FormRenderer `code` field type + CodeEditor** — `pwa/src/components/forms/CodeEditor.tsx`
+  is a dependency-free, collapsible, syntax-highlighted code editor (transparent textarea over
+  a highlighted `<pre>`, scroll-synced; LaTeX token colouring). FormRenderer gained a `code`
+  case (`renderCode`) that renders it, same pattern as the `lines`/`richtext` types. Highlighting
+  is LaTeX-only today; generalise the tokenizer per a `language` prop before porting. Purely additive.
+
+- **Small shell tweaks (bundle with the above)** — `TreeEditor` `rootEditable` prop (Edit button
+  on the root header → `openEdit(root)`); `ResourcePanel` skips the sub-label line when
+  `getSubLabel` returns empty; `AreaShell` ICON_MAP gained `download`. All generic and low-risk.
+
+- **Collapsible layout columns (SplitPageLayout + AreaShell)** — both columns collapse to a
+  thin 44px rail (rotated title via `writing-mode: vertical-rl`, chevron restore button; whole
+  rail clickable). `SplitPageLayout` gained a `collapsibleLeft` prop (default on) that collapses
+  the left/list column and widens the detail pane; `AreaShell` collapses the section nav sidebar.
+  Collapsed state is persisted per-page/section in `localStorage` (`splitLeftCollapsed:<pathname>`,
+  `areaSidebarCollapsed:<title>`), starts expanded. The two collapse buttons are aligned to a shared
+  16px top offset (`AreaShell` sidebar `padding-top: 16px`; `SplitPageLayout` zeroes the Ionic
+  grid/left-col top padding). Pure shell-library UX, zero domain coupling — clear upstream. Note:
+  when the `AreaShell` sidebar is collapsed the nav links are hidden (restore to navigate); consider
+  an icon-only rail variant before/at port time. Mobile not addressed (see the layout's `@media` +
+  the responsive `sizeXs`/`IonSplitPane`/auto-collapse ideas from that discussion).
+
 - **BuildKit apt cache mount** — `python/Dockerfile` now uses
   `RUN --mount=type=cache,target=/var/cache/apt … --mount=…/var/lib/apt/lists …` plus
   `rm -f /etc/apt/apt.conf.d/docker-clean` and `# syntax=docker/dockerfile:1`, so apt
