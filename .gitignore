@@ -52,10 +52,12 @@ htmlcov/
 init-scripts/seed-cv-samples.sql
 
 # ── Claude Code ──────────────────────────────────────────────
-# Ignore personal/machine config (settings.local.json, etc.),
-# but share the curated memory knowledge base so others can grasp
-# the system via Claude Code.
+# Ignore personal/machine config (settings.local.json, etc.), but share
+# the curated memory knowledge base, the path-gated rules, and the skills
+# so others can grasp and work the system via Claude Code.
 .claude/*
 !.claude/memory/
+!.claude/rules/
+!.claude/skills/
 # ...except personal notes about the user
 .claude/memory/user-manuel.md

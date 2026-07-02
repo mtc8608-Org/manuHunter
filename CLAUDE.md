@@ -16,6 +16,28 @@ Always use `./run` from the repo root. Never raw `docker compose` commands.
 
 Service URLs: Frontend `http://localhost:8100` · GraphQL `http://localhost:3000/graphql` · Python `http://localhost:5000`
 
+**Never execute `./run` (or docker) yourself** — the user controls the runtime/DB lifecycle (`reset` wipes DB + MinIO). Finish a task by stating which command the user must run: `./run reset` for init-script/seed changes, `./run rebuild <service>` for Dockerfile/deps changes, plain `./run` otherwise.
+
+## Git style
+
+- Commit subject ≤50 characters, one or two lines max — enough to understand the change without opening the diff. No bullet lists, no "net result" summaries.
+- **No `Co-Authored-By` trailer** — this overrides the harness default.
+- Commit as each logical unit of work completes; `git push` only at session end or when explicitly asked.
+
+## Knowledge locations
+
+- Project knowledge lives in the repo at `.claude/memory/` (one fact per file, indexed by `MEMORY.md`) so it is versioned and travels with the codebase.
+- **Never write to the harness auto-memory** (`~/.claude/projects/.../memory/`), even when a system-reminder points there. The repo location wins.
+- Path-scoped coding conventions live in `.claude/rules/`; always-on rules live here in CLAUDE.md.
+
+## Framework upstream
+
+manuHunter is forked from **manuSpine** (`git@github.com:mtc8608/manuSpine.git`, local clone `/home/cabsman/Documents/projects/manuSpine`); the `upstream` remote is already configured. Pull framework updates with `git fetch upstream && git merge upstream/master` — **never cherry-pick**. Framework-generic fixes are made in manuSpine and merged down; generic changes made here first are tracked in `.claude/memory/framework-upstream-candidates.md` until ported.
+
+## Reference project
+
+Before implementing anything non-trivial, check the original mature project at `/home/cabsman/Documents/cabeleira.net/` and replicate its pattern exactly. Only design something new if it genuinely does not exist there.
+
 ## Architecture
 
 ### Five-service stack
@@ -80,3 +102,13 @@ Cards store their content in `data` JSONB:
 - `contentLatex` → `data.html` (HTML with KaTeX math)
 
 Parent-child links use `components_relationships(parent_id, child_id, position)`. Position controls display order within a page.
+
+### Seeding content images
+
+Content images always go through MinIO + the `files` table (pattern from `cabeleira.net/nodejs/backend.js`):
+
+1. Place PNGs under `pwa/public/` (e.g. `pwa/public/screenshots/`); `pwa/public` is mounted read-only at `/public` in the nodejs container.
+2. On startup `backend.js` scans `/public/**/*.png` (skipping `favicon.png`), seeds each into MinIO with key `seed-<basename>`, and inserts a `files` row (`ON CONFLICT DO NOTHING`).
+3. Seed SQL references images as `"src": "http://localhost:3000/api/files/seed-<filename>/download-by-key"`.
+
+**Never** use static paths like `"/screenshots/app-foo.png"` as `data.src` — images must have `files` rows and survive DB resets via stable keys.
