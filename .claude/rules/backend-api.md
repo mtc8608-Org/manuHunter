@@ -17,10 +17,8 @@ How the Node backend is organised and secured. Applies to every edit under `node
 
 - A JWT middleware in `backend.js` attaches `req.user` (or `null`) to every request and always continues; nothing is blocked at the middleware level.
 - **REST routes enforce their own auth**: start handlers with `if (!req.user) return res.status(401)...`, and owner/admin checks explicitly (see `files.js`, `compile.js`'s `loadOwnedDocument`).
-- **GraphQL enforcement** happens in `schema/index.js` using the `permissions.js` lists, by operation *name*:
-  - Mutations: `user` list → any valid JWT; `public` list → open; everything else → admin only.
-  - Queries: `user` list → any valid JWT; **everything else is unauthenticated-accessible** — there is no admin fallback on queries. A query's data is only protected by scoping inside its resolver. Never expose sensitive data through a new query assuming it defaults to admin.
-- Adding an operation is not done until its name is placed in the right `permissions.js` tier, with a `// [DOMAIN]` comment explaining the scoping.
+- **GraphQL enforcement** happens in `schema/index.js` using the `permissions.js` lists, by operation *name*, and is **identical for queries and mutations**: `user` list → any valid JWT; `public` list → open; everything else → admin only. An operation left out of both lists is admin-only by default — including queries.
+- Because admin is the default, adding an operation is not done until its name is placed in the right `permissions.js` tier with a `// [DOMAIN]` comment. Anything you put in the `user` tier must still owner-scope inside the resolver (admin-tier default protects against cross-role access, not cross-user access).
 
 ## The owner-scoping invariant (non-negotiable)
 
