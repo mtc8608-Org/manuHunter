@@ -15,10 +15,11 @@ How the Node backend is organised and secured. Applies to every edit under `node
 
 ## Auth model (how it actually works)
 
-- A JWT middleware in `backend.js` attaches `req.user` (or `null`) to every request and always continues; nothing is blocked at the middleware level.
-- **REST routes enforce their own auth**: start handlers with `if (!req.user) return res.status(401)...`, and owner/admin checks explicitly (see `files.js`, `compile.js`'s `loadOwnedDocument`).
-- **GraphQL enforcement** happens in `schema/index.js` using the `permissions.js` lists, by operation *name*, and is **identical for queries and mutations**: `user` list → any valid JWT; `public` list → open; everything else → admin only. An operation left out of both lists is admin-only by default — including queries.
-- Because admin is the default, adding an operation is not done until its name is placed in the right `permissions.js` tier with a `// [DOMAIN]` comment. Anything you put in the `user` tier must still owner-scope inside the resolver (admin-tier default protects against cross-role access, not cross-user access).
+- A JWT middleware in `backend.js` attaches `req.user` (or `null`) to every request, guarantees `req.user.tier` (the roles-table tier resolved at login and carried in the JWT), and always continues; nothing is blocked at the middleware level.
+- **All auth checks compare `req.user.tier` / `ctx.user.tier`** ('registered' < 'user' < 'admin'), never the role name — role names live in the `roles` table and alias onto a tier (backoffice Roles page; `new-role` skill). A new check written against `user.role === 'admin'` is a bug.
+- **REST routes enforce their own auth**: start handlers with `if (!req.user) return res.status(401)...` (or `tier !== 'admin'` → 403 for backoffice features), and owner/admin checks explicitly (see `files.js`, `compile.js`'s `loadOwnedDocument`). The only tokenless endpoints are `/login`, `/register`, and the two file-download streams (`<img>` tags cannot carry the auth header) — never add another.
+- **GraphQL enforcement** happens in `schema/index.js` using the `permissions.js` lists, by operation *name*, and is **identical for queries and mutations**. There is **no public tier**: every operation requires a valid JWT, then `registered` list → any tier; `user` list → tier user/admin; everything else → admin only. An operation left out of both lists is admin-only by default — including queries.
+- Because admin is the default, adding an operation is not done until its name is placed in the right `permissions.js` tier with a `// [DOMAIN]` comment. Anything you put in the `registered`/`user` tiers must still owner-scope inside the resolver (admin-tier default protects against cross-role access, not cross-user access).
 
 ## The owner-scoping invariant (non-negotiable)
 

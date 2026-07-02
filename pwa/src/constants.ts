@@ -441,7 +441,7 @@ export const AREA_NAV = {
 export const NAV_SECTIONS = [
   { label: 'Job Applications', routes: ['/folder/Applications', '/folder/Artifacts'],                 link: '/folder/Applications',  icon: 'briefcase'  },
   { label: 'CV Builder',   routes: ['/folder/CVs', '/folder/GeneratedCVs', '/folder/Templates'],      link: '/folder/CVs',           icon: 'document-text' },
-  { label: 'Surveys',    routes: ['/folder/Surveys'],                                             link: '/folder/Surveys',       icon: 'clipboard'  },
+  { label: 'Surveys',    routes: ['/folder/Surveys'],                                             link: '/folder/Surveys',       icon: 'clipboard',  userOnly: true },
   { label: 'Backoffice', routes: ['/folder/Content', '/folder/Files', '/folder/Configuration', '/folder/Users', '/folder/Roles'],   link: '/folder/Content',       icon: 'construct',  adminOnly: true },
 ] as const;
 // #endregion

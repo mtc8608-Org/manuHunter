@@ -21,7 +21,7 @@ export interface AppHeaderProps {
 
 const AppHeader: React.FC<AppHeaderProps> = ({ pageActions }) => {
   const location = useLocation();
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, isUser, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -55,6 +55,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ pageActions }) => {
           <div className="app-header-nav">
             {NAV_SECTIONS
               .filter(s => !('adminOnly' in s && s.adminOnly) || isAdmin)
+              .filter(s => !('userOnly' in s && s.userOnly) || isUser)
               .map(s => (
                 <IonButton
                   key={s.label}

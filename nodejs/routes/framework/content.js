@@ -63,7 +63,8 @@ Refinement turns:
 const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 router.post('/generate-content', upload.array('files', 50), async (req, res) => {
-  if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+  // Backoffice Content-page feature — admin only.
+  if (req.user?.tier !== 'admin') return res.status(403).json({ error: 'Admin access required' });
 
   const files    = req.files ?? [];
   const history  = JSON.parse(req.body.history ?? '[]');

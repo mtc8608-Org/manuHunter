@@ -62,14 +62,19 @@ router.get('/files/:id/download', async (req, res) => {
   }
 });
 
+// Owner or admin may edit (same rule as delete below).
 router.patch('/files/:id', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
   const { description } = req.body ?? {};
   try {
+    const scope = req.user.tier === 'admin' ? '' : ' AND uploaded_by = $3::uuid';
+    const params = [description ?? null, req.params.id];
+    if (scope) params.push(req.user.id);
     const result = await pool.query(
-      'UPDATE files SET description = $1 WHERE id = $2::uuid RETURNING *',
-      [description ?? null, req.params.id]
+      `UPDATE files SET description = $1 WHERE id = $2::uuid${scope} RETURNING *`,
+      params
     );
+    if (!result.rows.length) return res.status(404).json({ error: 'File not found or not authorised' });
     res.json(result.rows[0]);
   } catch (e) {
     res.status(500).json({ error: e.message });

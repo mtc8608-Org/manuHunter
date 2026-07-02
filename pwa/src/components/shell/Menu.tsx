@@ -61,18 +61,22 @@ const Menu: React.FC = () => {
           {navItem(ROUTE.LANDING, homeOutline, 'Home')}
         </IonList>
 
-        <IonList>
-          <IonListHeader>Job Applications</IonListHeader>
-          {navItem(ROUTE.APPLICATIONS, briefcaseOutline, 'Applications')}
-          {navItem(ROUTE.ARTIFACTS, folderOutline, 'Artifacts')}
-        </IonList>
+        {user && (
+          <IonList>
+            <IonListHeader>Job Applications</IonListHeader>
+            {navItem(ROUTE.APPLICATIONS, briefcaseOutline, 'Applications')}
+            {navItem(ROUTE.ARTIFACTS, folderOutline, 'Artifacts')}
+          </IonList>
+        )}
 
-        <IonList>
-          <IonListHeader>CV Builder</IonListHeader>
-          {navItem(ROUTE.CV, documentTextOutline, 'CVs')}
-          {navItem(ROUTE.GENERATED_CVS, downloadOutline, 'Generated CVs')}
-          {navItem(ROUTE.CV_TEMPLATES, layersOutline, 'Templates')}
-        </IonList>
+        {user && (
+          <IonList>
+            <IonListHeader>CV Builder</IonListHeader>
+            {navItem(ROUTE.CV, documentTextOutline, 'CVs')}
+            {navItem(ROUTE.GENERATED_CVS, downloadOutline, 'Generated CVs')}
+            {navItem(ROUTE.CV_TEMPLATES, layersOutline, 'Templates')}
+          </IonList>
+        )}
 
         {isUser && (
           <IonList>
@@ -88,22 +92,23 @@ const Menu: React.FC = () => {
             {navItem(ROUTE.FILES,         folderOutline,       'Files')}
             {navItem(ROUTE.CONFIGURATION, constructOutline,    'Configuration')}
             {navItem(ROUTE.USERS,         peopleOutline,       'Users')}
+            {navItem(ROUTE.ROLES,         keyOutline,          'Roles')}
           </IonList>
         )}
 
-        <IonList id="labels-list">
-          <IonListHeader>Account</IonListHeader>
-          {navItem(ROUTE.PROFILE,  personOutline,   'Profile')}
-          {navItem(ROUTE.ACCOUNT,  keyOutline,      'Account')}
-          {navItem(ROUTE.SETTINGS, settingsOutline, 'Settings')}
+        {user && (
+          <IonList id="labels-list">
+            <IonListHeader>Account</IonListHeader>
+            {navItem(ROUTE.PROFILE,  personOutline,   'Profile')}
+            {navItem(ROUTE.ACCOUNT,  keyOutline,      'Account')}
+            {navItem(ROUTE.SETTINGS, settingsOutline, 'Settings')}
 
-          {user && (
             <IonItem lines="none" button detail={false} onClick={handleLogout}>
               <IonIcon aria-hidden="true" slot="start" icon={logOutOutline} />
               <IonLabel>Logout</IonLabel>
             </IonItem>
-          )}
-        </IonList>
+          </IonList>
+        )}
 
       </IonContent>
     </IonMenu>

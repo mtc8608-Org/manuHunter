@@ -48,20 +48,19 @@ const handler = createHandler({
     const name = document.definitions[0]?.selectionSet?.selections[0]?.name?.value ?? '';
     const user = contextValue?.user;
 
-    // Same rule for queries and mutations: registered list → any JWT, user
-    // list → tier user/admin, public list → open, everything else → admin.
-    // No query/mutation asymmetry. Checks use the JWT's `tier` claim — the
+    // Same rule for queries and mutations, and no public tier: EVERY GraphQL
+    // operation requires a valid JWT — an anonymous request always fails.
+    // Then: registered list → any JWT, user list → tier user/admin,
+    // everything else → admin. Checks use the JWT's `tier` claim — the
     // roles-table tier resolved at login (backend.js normalises legacy
     // tokens), so any role aliased onto a tier passes its rung.
-    if (permissions.registered.includes(name)) {
-      if (!user) return { errors: [{ message: 'Authentication required' }] };
-    } else if (permissions.user.includes(name)) {
-      if (!user) return { errors: [{ message: 'Authentication required' }] };
+    if (!user) return { errors: [{ message: 'Authentication required' }] };
+    if (permissions.user.includes(name)) {
       if (user.tier !== 'user' && user.tier !== 'admin') {
         return { errors: [{ message: 'User access required' }] };
       }
-    } else if (!permissions.public.includes(name)) {
-      if (user?.tier !== 'admin') return { errors: [{ message: 'Admin access required' }] };
+    } else if (!permissions.registered.includes(name)) {
+      if (user.tier !== 'admin') return { errors: [{ message: 'Admin access required' }] };
     }
     return graphqlExecute(args);
   },
