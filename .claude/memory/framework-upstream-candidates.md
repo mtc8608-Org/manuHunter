@@ -71,11 +71,14 @@ were made here first (during CV builder work); port them to manuSpine when conve
 
 - **`.claude/` config layout (rules/, skills/, CLAUDE.md sections)** — manuHunter's Claude
   Code config was refactored (2026-07): path-gated conventions in `.claude/rules/`
-  (code-reuse, page-structure, page-template), skills `/new-page` and `/which-component`,
-  and always-on rules (never-run, git style, knowledge locations, upstream workflow,
-  reference project) as CLAUDE.md sections. All framework-generic — port the layout and
-  the rule/skill files to manuSpine so every fork inherits the conventions; each fork
-  keeps only its domain memories.
+  (now `backend-api`, `code-reuse`, `db-schema`, `files-storage`, `forms-ui`,
+  `page-structure`, `page-template`, `python-compute`), skills in `.claude/skills/`
+  (`new-api`, `new-compute`, `new-form`, `new-page`, `new-role`, `seed-content`,
+  `which-component`), and always-on rules (never-run, git style, knowledge locations,
+  upstream workflow, reference project) as CLAUDE.md sections. All framework-generic
+  (the rules/skills describe the framework's own conventions, not CV/jobs) — port the
+  layout and the rule/skill files to manuSpine so every fork inherits the conventions;
+  each fork keeps only its domain memories.
 
 - **User account: `user_profile` + `user_secrets` keychain + Users backoffice page (2026-07-02)** —
   the whole [[user-account-keychain-plan]] design is framework-generic: `user_profile` /
@@ -94,11 +97,12 @@ were made here first (during CV builder work); port them to manuSpine when conve
   char-by-char, stretching the item). Single-badge behaviour unchanged; `AreaShell`/`Menu` also
   gained the `people` icon. Bundle with the shell tweaks above.
 
-- **`registered` role + self-registration (2026-07-02)** — third role tier below `user`:
-  `permissions.js` now has four tiers (`public` / `registered` any-JWT / `user` role
-  user-or-admin / admin fallback) enforced in `schema/index.js`; survey reads moved from
-  `public` to `user`, survey answers from old `user` tier likewise; all self-service +
-  domain ops sit in `registered`. Public `POST /api/register` in `routes/framework/auth.js`
+- **`registered` role + self-registration (2026-07-02)** — new any-JWT tier below `user`:
+  `permissions.js` gained the `registered` tier (below `user` role user-or-admin, above the
+  admin fallback) enforced in `schema/index.js`; survey reads/answers moved up to the `user`
+  tier; all self-service + domain ops sit in `registered`. (The `public` tier that briefly
+  sat below `registered` was later removed entirely — see the lockdown entry below.)
+  Public `POST /api/register` in `routes/framework/auth.js`
   (role hardcoded `'registered'`, returns JWT). Frontend: `AuthContext` `isUser` flag +
   `register()`, new `components/routing/UserRoute.tsx`, Surveys route/menu gated by
   `isUser`, SignIn page sign-in/register mode toggle (+ confirm-password field),
@@ -117,6 +121,19 @@ were made here first (during CV builder work); port them to manuSpine when conve
   (+ route/nav/`PANEL_CONFIG.ROLES`/`ROLE_FORM`/`ROLE_TIERS`, `key` icon in AreaShell),
   Users page role selects fed from `roleList` via `injectedOptions`. Fully framework-generic
   — port wholesale together with the `.claude/skills/new-role` skill.
+
+- **No public GraphQL tier — full auth lockdown (2026-07-02)** — the `public`
+  `permissions.js` tier was **removed**: every GraphQL operation now requires a valid JWT
+  (three tiers only — `registered` / `user` / admin fallback), so anonymous requests always
+  fail. `componentByName` moved from `public` into `registered` (FormRenderer + Landing
+  content now need a token). Anonymous visitors get **only** the REST `/login`, `/register`,
+  and the two tokenless file-download streams (`<img>` can't carry the header) — the invariant
+  is "never add another tokenless endpoint". Backoffice REST endpoints hardened to
+  `tier !== 'admin'` → 403 (survey stats export in `routes/framework/compute.js`,
+  `/generate-content` in `content.js`); `files.js` edit endpoint is owner-or-admin. Frontend
+  `Menu.tsx`/`AppHeader.tsx`/`constants.ts` adjusted so no nav/route assumes anonymous access.
+  Rules updated too (`backend-api.md`, `new-api` skill). Framework-generic — port with the
+  role/tier mechanism above.
 
 - **`SinglePanelLayout` + User area (2026-07-02)** — `pwa/src/components/shell/SinglePanelLayout.tsx`,
   the single-column sibling of `SplitPageLayout` (same shell: AppHeader + AreaShell + `hidden` +
