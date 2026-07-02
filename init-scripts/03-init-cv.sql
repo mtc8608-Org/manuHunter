@@ -67,8 +67,8 @@ CREATE TABLE cv_artifacts (
     label            TEXT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
--- The per-user identity block lives in the framework user_profile table
--- (01-init-db.sql); this app defines its shape via form_cv_profile below.
+-- The per-user profile lives in the framework user_profile table
+-- (01-init-db.sql); this app defines its shape via form_user_profile below.
 
 CREATE INDEX idx_cv_components_owner ON cv_components(owner_id);
 CREATE INDEX idx_cv_artifacts_owner  ON cv_artifacts(owner_id);
@@ -76,7 +76,7 @@ CREATE INDEX idx_cv_artifacts_owner  ON cv_artifacts(owner_id);
 
 
 -- #region Edit forms · cf00 range (live in the shared `components` table, global)
--- One FormRenderer-compatible form tree per CV node type, plus the identity form.
+-- One FormRenderer-compatible form tree per CV node type, plus the user profile form.
 -- Field keys (options.label) are the node's own data keys, since TreeEditor passes
 -- node.data as defaultValues and saves the form output back as data.
 -- UUIDs are hardcoded in constants.ts (CV_EDITOR_ID / CV_FORM).
@@ -168,18 +168,20 @@ INSERT INTO components_relationships (parent_id, child_id, position) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf50', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf54',  2),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf50', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf5a',  3);
 
--- cvProfile editor — the per-user identity block, saved via upsertUserProfile
--- and merged into every CV at compile time. Field keys match user_profile.data.
+-- User profile editor — the per-user profile block, saved via upsertUserProfile
+-- and merged into every CV at compile time. Field keys match user_profile.data
+-- (cvAssemble reads explicit keys only, so extra fields like picture are ignored).
 INSERT INTO components (id, name, type, data, options) VALUES
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf60', 'form_cv_profile',     'form',  '{"text": "Profile"}',       '{"label": "form_cv_profile"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf61', 'cv_prof_name',        'input', '{"text": "Full name"}',     '{"label": "name"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf62', 'cv_prof_phone',       'input', '{"text": "Phone"}',         '{"label": "phone"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf63', 'cv_prof_email',       'input', '{"text": "Email"}',         '{"label": "email"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf64', 'cv_prof_location',    'input', '{"text": "Location"}',      '{"label": "location"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf65', 'cv_prof_linkedin_url','input', '{"text": "LinkedIn URL"}',  '{"label": "linkedin_url"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf66', 'cv_prof_linkedin_lbl','input', '{"text": "LinkedIn label"}','{"label": "linkedin_label"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf67', 'cv_prof_github_url',  'input', '{"text": "GitHub URL"}',    '{"label": "github_url"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf68', 'cv_prof_github_lbl',  'input', '{"text": "GitHub label"}',  '{"label": "github_label"}');
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf60', 'form_user_profile',     'form',       '{"text": "Profile"}',        '{"label": "form_user_profile"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf61', 'user_prof_name',        'input',      '{"text": "Full name"}',      '{"label": "name"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf62', 'user_prof_phone',       'input',      '{"text": "Phone"}',          '{"label": "phone"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf63', 'user_prof_email',       'input',      '{"text": "Email"}',          '{"label": "email"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf64', 'user_prof_location',    'input',      '{"text": "Location"}',       '{"label": "location"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf65', 'user_prof_linkedin_url','input',      '{"text": "LinkedIn URL"}',   '{"label": "linkedin_url"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf66', 'user_prof_linkedin_lbl','input',      '{"text": "LinkedIn label"}', '{"label": "linkedin_label"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf67', 'user_prof_github_url',  'input',      '{"text": "GitHub URL"}',     '{"label": "github_url"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf68', 'user_prof_github_lbl',  'input',      '{"text": "GitHub label"}',   '{"label": "github_label"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf69', 'user_prof_picture',     'filepicker', '{"text": "Profile picture"}','{"label": "picture"}');
 INSERT INTO components_relationships (parent_id, child_id, position) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf60', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf61', 1),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf60', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf62', 2),
@@ -188,7 +190,8 @@ INSERT INTO components_relationships (parent_id, child_id, position) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf60', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf65', 5),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf60', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf66', 6),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf60', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf67', 7),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf60', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf68', 8);
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf60', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf68', 8),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf60', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf69', 9);
 -- #endregion
 
 

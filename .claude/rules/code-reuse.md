@@ -16,9 +16,10 @@ Before writing any new JSX:
 
 ## Decision guide (the single right choice for each need)
 
-- Split-layout page → `SplitPageLayout` (wraps IonPage, AppHeader, AreaShell, Grid). Never hand-roll that boilerplate.
+- Page layout — the rule is: **list needed → `SplitPageLayout`; no list → `SinglePanelLayout`.** Never hand-roll the IonPage/AppHeader/AreaShell/Grid boilerplate either way.
+- Split-layout page → `SplitPageLayout` (wraps IonPage, AppHeader, AreaShell, Grid). Single-panel page (settings, account, any page without a list/detail split) → `SinglePanelLayout` (same shell, one centered column).
 - Left-sidebar area nav (`SplitPageLayout` `navItems`) → one shared `AREA_NAV.<AREA>` list per area (like `AREA_NAV.BACKOFFICE`). Every page in the area passes the *same* list in the *same* order. Adding a page to an existing area reuses that area's list — never define a second per-page variant with the items reordered, or the sidebar reshuffles as you navigate between the area's pages (this is what a duplicated `AREA_NAV.JOBS` + `AREA_NAV.CV` caused).
-- Both columns of `SplitPageLayout` are *always* a `TabPanel` — the left via `leftTabs` (see `page-template.md`), the right by passing `right={<TabPanel tabs={[...]} />}`. This is unconditional: a column with a single view is still a one-tab `TabPanel` (`<TabPanel tabs={[{ label: 'Detail'|'Preview', content }]} />`), never a bare fragment, `<IonCard>`, or raw node. `TabPanel` always renders the segment bar, even for one tab. (GeneratedCvs' right column was first written as a bare fragment — inconsistent with every other page.)
+- Both columns of `SplitPageLayout` are *always* a `TabPanel` — the left via `leftTabs` (see `page-template.md`), the right by passing `right={<TabPanel tabs={[...]} />}`. This is unconditional: a column with a single view is still a one-tab `TabPanel` (`<TabPanel tabs={[{ label: 'Detail'|'Preview', content }]} />`), never a bare fragment, `<IonCard>`, or raw node. `TabPanel` always renders the segment bar, even for one tab. (GeneratedCvs' right column was first written as a bare fragment — inconsistent with every other page.) `SinglePanelLayout`'s one column follows the same rule via its `tabs` prop — it has no raw-node escape hatch.
 - "Create item" button on a list → `onAdd` on `ResourcePanel`, always, without exception. Never via `rightHeader`.
 - Page-level controls above the right column → `rightHeader` (bulk ops, mode toggles, save state), never for creating list items.
 - Tab-specific buttons → `actions` on the relevant `TabDef`.

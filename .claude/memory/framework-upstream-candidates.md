@@ -84,7 +84,7 @@ were made here first (during CV builder work); port them to manuSpine when conve
   the `userProfile`/`upsertUserProfile`/`userSecrets`/`setUserSecret`/`clearUserSecret` resolvers
   in `resolvers/framework/users.js` (+ `UserProfileType`/`UserSecretType`, permissions entries,
   `SECRETS_MASTER_KEY` env), Account's Profile + Integrations cards, and `backoffice/Users.tsx`
-  (+ route/nav/PANEL_CONFIG.USERS). Only the profile *form shape* (`form_cv_profile`) is app-level.
+  (+ route/nav/PANEL_CONFIG.USERS). Only the profile *form shape* (`form_user_profile`) is app-level.
   Port wholesale; each app seeds its own profile form.
 
 - **`ResourcePanel.getBadge` accepts `Badge | Badge[]`** — `pwa/src/components/shell/ResourcePanel.tsx`
@@ -117,6 +117,16 @@ were made here first (during CV builder work); port them to manuSpine when conve
   (+ route/nav/`PANEL_CONFIG.ROLES`/`ROLE_FORM`/`ROLE_TIERS`, `key` icon in AreaShell),
   Users page role selects fed from `roleList` via `injectedOptions`. Fully framework-generic
   — port wholesale together with the `.claude/skills/new-role` skill.
+
+- **`SinglePanelLayout` + User area (2026-07-02)** — `pwa/src/components/shell/SinglePanelLayout.tsx`,
+  the single-column sibling of `SplitPageLayout` (same shell: AppHeader + AreaShell + `hidden` +
+  `children`; one centered `TabPanel` column via `tabs`, `header` strip, `contentSize` width;
+  imports the now-exported `RIGHT_HEADER_STYLE`). New layout rule in `code-reuse.md`/`page-template.md`:
+  list needed → `SplitPageLayout`, no list → `SinglePanelLayout`. Used by the User area
+  (`pages/user/` Profile / Account / Settings, `AREA_NAV.USER`, dark-mode toggle moved from
+  AppHeader/Menu to Settings; `person`/`settings` icons in AreaShell ICON_MAP). The layout,
+  rule text, and the Account/Settings pages are framework-generic — port together; the Profile
+  page's form shape stays app-level.
 
 - **(Maybe) LaTeX compile service** — the `python/api/domains/latex/` compile endpoint
   (pdflatex, shell-escape disabled, temp dir, timeout) + the Node bridge pattern is

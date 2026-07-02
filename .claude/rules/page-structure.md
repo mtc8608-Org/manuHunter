@@ -19,7 +19,7 @@ component function {
   [page-specific section banners + handlers]
   HANDLERS banner + event handlers (if not split into named sections)
   RENDER banner
-  return ( <SplitPageLayout ...> {/* Modals */} </SplitPageLayout> )
+  return ( <SplitPageLayout|SinglePanelLayout ...> {/* Modals */} </...> )
 }
 ```
 
