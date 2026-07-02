@@ -7,7 +7,6 @@ import React, { useEffect, useState } from 'react';
 import {
   IonButton, IonItem, IonLabel, IonText,
 } from '@ionic/react';
-import { keyOutline } from 'ionicons/icons';
 import { ComponentResults } from '../../interfaces/types';
 import ApiService, { Role } from '../../services/Api';
 import SplitPageLayout from '../../components/shell/SplitPageLayout';
@@ -162,7 +161,10 @@ const Roles: React.FC = () => {
           label: 'Roles',
           content: (
             /* ═══════════════════════════════════════════════════════════
-                 Component list                                            */
+                 Component list
+                 End-slot budget: single badge + Delete only — no icon, no
+                 badge stack, or IonLabel starves and the name vanishes
+                 (page-template.md rule 5).                                 */
             <ResourcePanel<Role>
               fetcher={rolesFetcher}
               refreshToken={listVersion}
@@ -170,11 +172,7 @@ const Roles: React.FC = () => {
               selectedId={selected?.id}
               getLabel={r => r.name}
               getSubLabel={r => `${r.users} user(s)`}
-              getIcon={() => keyOutline}
-              getBadge={r => [
-                { label: r.tier, color: TIER_COLOR[r.tier] ?? 'primary' },
-                ...(r.is_system ? [{ label: 'system', color: 'medium' }] : []),
-              ]}
+              getBadge={r => ({ label: r.tier, color: TIER_COLOR[r.tier] ?? 'primary' })}
               onSelect={selectRole}
               onAdd={openCreate}
               onDelete={openDelete}

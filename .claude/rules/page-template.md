@@ -5,7 +5,7 @@ paths:
 
 # SplitPageLayout left-column template rules
 
-The left column of every page has four non-negotiable rules. In the reference project these were corrected multiple times across pages; apply them from the start on every new manuHunter page. See `code-reuse.md` and `page-structure.md`.
+The left column of every page has five non-negotiable rules. In the reference project these were corrected multiple times across pages; apply them from the start on every new manuHunter page. See `code-reuse.md` and `page-structure.md`.
 
 **Why:** the template is mandated. Deviating causes inconsistent UI and repeated correction work.
 
@@ -30,10 +30,11 @@ The left column of every page has four non-negotiable rules. In the reference pr
 />
 ```
 
-The four rules, enforced together:
+The five rules, enforced together:
 1. Always pass `leftTabs={[...]}`. Never `left={<TabPanel .../>}` or a bare `<ResourcePanel>`. `SplitPageLayout` renders the `TabPanel` internally. Use the `left: ReactNode` escape hatch only for a controlled TabPanel needing `activeTab`/`onTabChange` (rare).
 2. `ResourcePanel` always uses `fetcher` + `refreshToken`. Never the `data={array}` prop.
 3. `actions` is for buttons only. Error messages and non-interactive elements go inside `content`.
 4. Hidden DOM nodes (file inputs, invisible refs, library TreeEditors) go in `SplitPageLayout`'s `hidden` prop.
+5. **ResourcePanel item slot budget.** `IonLabel` is the only flexible element in a list item; every start/end-slot element (icon, badge, badge stack, Delete button) is fixed-width and steals the label's space. In the narrow left column, exceeding the budget collapses the label to zero width — the name *disappears* and the item stretches tall (text wraps char-by-char). Budget: at most **one** end-slot extra beside the Delete button — a single badge, or a stacked badge *array* only when there is no `onDelete`. With `onDelete` present, skip `getIcon` and never pass a badge array. Symptom to recognise: badges and Delete render, names blank, items abnormally tall (this bit the Users page and again the Roles page).
 
 `rightHeader` is an always-present zone (renders an empty bordered strip when undefined); use it only for page-level controls (bulk ops, mode toggles, save state), never to create a list item (that is `ResourcePanel`'s `onAdd`). Set `keepMounted` on a tab whose content holds a `useRef` other tabs access.
