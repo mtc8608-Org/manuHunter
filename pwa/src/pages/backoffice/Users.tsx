@@ -6,7 +6,6 @@ import React, { useEffect, useState } from 'react';
 import {
   IonItem, IonLabel, IonText,
 } from '@ionic/react';
-import { personOutline } from 'ionicons/icons';
 import { ComponentResults } from '../../interfaces/types';
 import ApiService from '../../services/Api';
 import SplitPageLayout from '../../components/shell/SplitPageLayout';
@@ -155,7 +154,6 @@ const Users: React.FC = () => {
               selectedId={selected?.id}
               getLabel={u => u.email}
               getSubLabel={u => `Joined ${formatDate(u.created_at)}`}
-              getIcon={() => personOutline}
               getBadge={u => [
                 { label: u.is_active ? 'active' : 'inactive', color: u.is_active ? 'success' : 'medium' },
                 { label: u.role, color: u.role === 'admin' ? 'warning' : 'primary' },
