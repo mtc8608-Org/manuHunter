@@ -7,6 +7,7 @@ import { Route } from 'react-router-dom';
 import Menu from './components/shell/Menu';
 import PrivateRoute from './components/routing/PrivateRoute';
 import AdminRoute from './components/routing/AdminRoute';
+import UserRoute from './components/routing/UserRoute';
 import Landing from './pages/public/Landing';
 import SignIn from './pages/public/SignIn';
 import Account from './pages/Account';
@@ -63,7 +64,9 @@ const App: React.FC = () => {
                 <PrivateRoute path={ROUTE.CV}           exact={true} component={Cv} />
                 <PrivateRoute path={ROUTE.GENERATED_CVS} exact={true} component={GeneratedCvs} />
                 <PrivateRoute path={ROUTE.CV_TEMPLATES}  exact={true} component={CvTemplates} />
-                <PrivateRoute path={ROUTE.SURVEYS}      exact={true} component={Surveys} />
+
+                {/* Full users only (role 'user' or 'admin') */}
+                <UserRoute path={ROUTE.SURVEYS}      exact={true} component={Surveys} />
 
                 {/* Admin only */}
                 <AdminRoute path={ROUTE.CONTENT}       exact={true} component={Content} />

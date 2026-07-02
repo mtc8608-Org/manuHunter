@@ -94,6 +94,18 @@ were made here first (during CV builder work); port them to manuSpine when conve
   char-by-char, stretching the item). Single-badge behaviour unchanged; `AreaShell`/`Menu` also
   gained the `people` icon. Bundle with the shell tweaks above.
 
+- **`registered` role + self-registration (2026-07-02)** — third role tier below `user`:
+  `permissions.js` now has four tiers (`public` / `registered` any-JWT / `user` role
+  user-or-admin / admin fallback) enforced in `schema/index.js`; survey reads moved from
+  `public` to `user`, survey answers from old `user` tier likewise; all self-service +
+  domain ops sit in `registered`. Public `POST /api/register` in `routes/framework/auth.js`
+  (role hardcoded `'registered'`, returns JWT). Frontend: `AuthContext` `isUser` flag +
+  `register()`, new `components/routing/UserRoute.tsx`, Surveys route/menu gated by
+  `isUser`, SignIn page sign-in/register mode toggle (+ confirm-password field),
+  `registered` option in the d001/d013 role dropdown seeds and `PANEL_CONFIG.USERS`
+  filter. All framework-generic except which ops go in which tier (app decision) —
+  port the mechanism wholesale.
+
 - **(Maybe) LaTeX compile service** — the `python/api/domains/latex/` compile endpoint
   (pdflatex, shell-escape disabled, temp dir, timeout) + the Node bridge pattern is
   largely generic ("compile a .tex string to PDF"). Borderline: it exists to serve the

@@ -45,10 +45,16 @@ const handler = createHandler({
     const name = document.definitions[0]?.selectionSet?.selections[0]?.name?.value ?? '';
     const user = contextValue?.user;
 
-    // Same rule for queries and mutations: user list → any JWT, public list →
-    // open, everything else → admin. No query/mutation asymmetry.
-    if (permissions.user.includes(name)) {
+    // Same rule for queries and mutations: registered list → any JWT, user
+    // list → role user/admin, public list → open, everything else → admin.
+    // No query/mutation asymmetry.
+    if (permissions.registered.includes(name)) {
       if (!user) return { errors: [{ message: 'Authentication required' }] };
+    } else if (permissions.user.includes(name)) {
+      if (!user) return { errors: [{ message: 'Authentication required' }] };
+      if (user.role !== 'user' && user.role !== 'admin') {
+        return { errors: [{ message: 'User access required' }] };
+      }
     } else if (!permissions.public.includes(name)) {
       if (user?.role !== 'admin') return { errors: [{ message: 'Admin access required' }] };
     }

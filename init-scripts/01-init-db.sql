@@ -245,7 +245,7 @@ CREATE TABLE users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email         TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL DEFAULT 'user',  -- 'admin' | 'user'
+  role          TEXT NOT NULL DEFAULT 'user',  -- 'admin' | 'user' | 'registered'
   is_active     BOOLEAN NOT NULL DEFAULT true,
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
@@ -285,12 +285,14 @@ INSERT INTO components (id, name, type, data, options) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d001', 'user_edit_role',       'select', '{"text": "Role"}',     '{"label": "role"}'),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d002', 'user_edit_role_user',  'option', '{"text": "user"}',     '{"label": "user"}'),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d003', 'user_edit_role_admin', 'option', '{"text": "admin"}',    '{"label": "admin"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d005', 'user_edit_role_registered', 'option', '{"text": "registered"}', '{"label": "registered"}'),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d004', 'user_edit_active',     'check',  '{"text": "Active"}',   '{"label": "is_active"}');
 INSERT INTO components_relationships (parent_id, child_id, position) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d000', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d001', 1),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d000', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d004', 2),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d001', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d002', 1),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d001', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d003', 2);
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d001', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d003', 2),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d001', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d005', 3);
 
 -- User create form (backoffice Users page, New modal).
 INSERT INTO components (id, name, type, data, options) VALUES
@@ -299,13 +301,15 @@ INSERT INTO components (id, name, type, data, options) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d012', 'user_new_password',   'input',  '{"text": "Password"}', '{"label": "password"}'),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d013', 'user_new_role',       'select', '{"text": "Role"}',     '{"label": "role"}'),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d014', 'user_new_role_user',  'option', '{"text": "user"}',     '{"label": "user"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d015', 'user_new_role_admin', 'option', '{"text": "admin"}',    '{"label": "admin"}');
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d015', 'user_new_role_admin', 'option', '{"text": "admin"}',    '{"label": "admin"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d016', 'user_new_role_registered', 'option', '{"text": "registered"}', '{"label": "registered"}');
 INSERT INTO components_relationships (parent_id, child_id, position) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d010', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d011', 1),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d010', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d012', 2),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d010', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d013', 3),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d013', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d014', 1),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d013', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d015', 2);
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d013', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d015', 2),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d013', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d016', 3);
 -- #endregion
 
 

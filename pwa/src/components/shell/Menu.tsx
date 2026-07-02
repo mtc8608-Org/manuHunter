@@ -33,7 +33,7 @@ import './Menu.css';
 const Menu: React.FC = () => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, isUser, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -77,10 +77,12 @@ const Menu: React.FC = () => {
           {navItem(ROUTE.CV_TEMPLATES, layersOutline, 'Templates')}
         </IonList>
 
-        <IonList>
-          <IonListHeader>Surveys</IonListHeader>
-          {navItem(ROUTE.SURVEYS, clipboardOutline, 'Surveys')}
-        </IonList>
+        {isUser && (
+          <IonList>
+            <IonListHeader>Surveys</IonListHeader>
+            {navItem(ROUTE.SURVEYS, clipboardOutline, 'Surveys')}
+          </IonList>
+        )}
 
         {isAdmin && (
           <IonList>

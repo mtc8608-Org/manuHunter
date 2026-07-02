@@ -1,14 +1,16 @@
 // ── Role-based access configuration ──────────────────────────────────────────
 // Controls which GraphQL operations are accessible without admin privileges.
 // Applied identically to queries AND mutations (schema/index.js):
-//   public — no token required
-//   user   — any valid JWT required (any role)
-//   admin  — role must be 'admin'; EVERYTHING not listed above defaults here
+//   public     — no token required
+//   registered — any valid JWT required (any role)
+//   user       — role must be 'user' or 'admin'
+//   admin      — role must be 'admin'; EVERYTHING not listed above defaults here
 //
-// A query left out of both lists is admin-only, same as a mutation — so a new
+// A query left out of all lists is admin-only, same as a mutation — so a new
 // operation is locked down by default. Opening one to users/public is a
 // deliberate act of adding its name here. In-resolver owner-scoping is still
-// required for anything in the `user` tier (a user must not see others' rows).
+// required for anything in the `registered`/`user` tiers (a user must not see
+// others' rows).
 //
 // The `admin` list below is informational only (the fallback enforces it);
 // keep query names that are conceptually admin here so intent is documented.
@@ -17,15 +19,10 @@ module.exports = {
   // GraphQL query field names accessible without any token
   public: [
     'componentByName',
-    'surveyList',
-    'surveyComponent',
-    'surveyComponentList',
-    'surveyComponentParents',
-    'surveyAnswers',
   ],
 
   // GraphQL query/mutation field names accessible with any valid token
-  user: [
+  registered: [
     'me',
     // account self-service — resolvers scope by the caller's JWT, no owner argument
     'userProfile',
@@ -33,8 +30,6 @@ module.exports = {
     'userSecrets',
     'setUserSecret',
     'clearUserSecret',
-    'submitAnswer',
-    'updateAnswer',
     // [JOBS] — every user manages their own applications; resolvers scope by user_id
     'applications',
     'application',
@@ -61,6 +56,17 @@ module.exports = {
     'createCvDocument',
     'updateCvDocument',
     'deleteCvDocument',
+  ],
+
+  // GraphQL query/mutation field names requiring role 'user' (or 'admin')
+  user: [
+    'surveyList',
+    'surveyComponent',
+    'surveyComponentList',
+    'surveyComponentParents',
+    'surveyAnswers',
+    'submitAnswer',
+    'updateAnswer',
   ],
 
   // Everything else requires role === 'admin'.

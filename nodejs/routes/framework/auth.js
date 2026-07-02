@@ -26,6 +26,29 @@ router.post('/login', async (req, res) => {
   }
 });
 
+router.post('/register', async (req, res) => {
+  const { email, password } = req.body ?? {};
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      "INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'registered') RETURNING id, email, role",
+      [email, hash]
+    );
+    const user = result.rows[0];
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({ token, user: { id: user.id, email: user.email, role: user.role } });
+  } catch (e) {
+    if (e.code === '23505') return res.status(409).json({ error: 'Email already exists' });
+    console.error('Register error:', e);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/me', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
   try {

@@ -355,7 +355,7 @@ export const PANEL_CONFIG = {
     add: { enabled: true, label: 'New user' },
     filter: {
       text: { enabled: true, placeholder: 'Search by email…' },
-      type: { enabled: true, options: ['user', 'admin'] },
+      type: { enabled: true, options: ['user', 'admin', 'registered'] },
     },
   },
 } as const satisfies Record<string, PanelConfig>;
