@@ -34,9 +34,9 @@ Service URLs: Frontend `http://localhost:8100` · GraphQL `http://localhost:3000
 
 manuHunter is forked from **manuSpine** (`git@github.com:mtc8608/manuSpine.git`, local clone `/home/cabsman/Documents/projects/manuSpine`); the `upstream` remote is already configured. Pull framework updates with `git fetch upstream && git merge upstream/master` — **never cherry-pick**. Framework-generic fixes are made in manuSpine and merged down; generic changes made here first are tracked in `.claude/memory/framework-upstream-candidates.md` until ported.
 
-## Reference project
+## Source of truth
 
-Before implementing anything non-trivial, check the original mature project at `/home/cabsman/Documents/cabeleira.net/` and replicate its pattern exactly. Only design something new if it genuinely does not exist there.
+The upstream framework **manuSpine** (`/home/cabsman/Documents/projects/manuSpine`) is the main source of truth for patterns. Before implementing anything non-trivial, find the closest existing implementation here or in manuSpine and replicate its pattern exactly. Only design something new if it genuinely does not exist in either. The original project at `/home/cabsman/Documents/cabeleira.net/` is retired as an authority — historical background only.
 
 ## Architecture
 
@@ -105,7 +105,7 @@ Parent-child links use `components_relationships(parent_id, child_id, position)`
 
 ### Seeding content images
 
-Content images always go through MinIO + the `files` table (pattern from `cabeleira.net/nodejs/backend.js`):
+Content images always go through MinIO + the `files` table (pattern from manuSpine's `nodejs/backend.js`):
 
 1. Place PNGs under `pwa/public/` (e.g. `pwa/public/screenshots/`); `pwa/public` is mounted read-only at `/public` in the nodejs container.
 2. On startup `backend.js` scans `/public/**/*.png` (skipping `favicon.png`), seeds each into MinIO with key `seed-<basename>`, and inserts a `files` row (`ON CONFLICT DO NOTHING`).

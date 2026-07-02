@@ -13,7 +13,7 @@ manuHunter shares the ManuSpine framework with several sibling apps (see [[manul
 ## manuSpine (the framework, upstream parent)
 - Repo: `/home/cabsman/Documents/projects/manuSpine`, `git@github.com:mtc8608/manuSpine.git`.
 - Memory: `manuSpine/.claude/memory/` and `/home/cabsman/.claude/projects/-home-cabsman-Documents-projects-manuSpine/memory/`.
-- Holds: the ManuLab context and the "copy from original project" rule, captured here as [[manulab-context]] and CLAUDE.md "Reference project".
+- Holds: the ManuLab context and the pattern source-of-truth rule (manuSpine is the authority; cabeleira.net retired), captured here as [[manulab-context]] and CLAUDE.md "Source of truth".
 
 ## manuBeat (cardio / bedside telemetry app)
 - Repo: `/home/cabsman/Documents/projects/manuBeat`. Also forked from manuSpine via the same `upstream` merge workflow (see CLAUDE.md "Framework upstream").

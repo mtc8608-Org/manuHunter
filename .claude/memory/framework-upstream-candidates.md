@@ -75,7 +75,7 @@ were made here first (during CV builder work); port them to manuSpine when conve
   `page-structure`, `page-template`, `python-compute`), skills in `.claude/skills/`
   (`new-api`, `new-compute`, `new-form`, `new-page`, `new-role`, `seed-content`,
   `which-component`), and always-on rules (never-run, git style, knowledge locations,
-  upstream workflow, reference project) as CLAUDE.md sections. All framework-generic
+  upstream workflow, source of truth) as CLAUDE.md sections. All framework-generic
   (the rules/skills describe the framework's own conventions, not CV/jobs) — port the
   layout and the rule/skill files to manuSpine so every fork inherits the conventions;
   each fork keeps only its domain memories.

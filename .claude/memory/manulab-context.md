@@ -8,7 +8,7 @@ metadata:
 
 # ManuLab / ManuSpine context
 
-manuHunter is a fork of **ManuSpine** (`git@github.com:mtc8608/manuSpine.git`), the open-source full-stack template extracted from **ManuLab** (cabeleira.net), Manuel's personal platform built on his biomedical engineering background. ManuSpine is the reusable scaffold (auth, component tree, surveys, CMS, shell components); each app forks it and adds a domain. manuHunter's domain is job hunting (jobs, applications, and the planned LaTeX CV builder, see [[cv-builder-plan]]).
+manuHunter is a fork of **ManuSpine** (`git@github.com:mtc8608/manuSpine.git`), the open-source full-stack template extracted from **ManuLab** (cabeleira.net), Manuel's personal platform built on his biomedical engineering background. ManuSpine is the reusable scaffold (auth, component tree, surveys, CMS, shell components); each app forks it and adds a domain. Since July 2026 manuSpine — not cabeleira.net — is the main source of truth for patterns, for the framework and every fork; cabeleira.net is retired as an authority (historical background only). manuHunter's domain is job hunting (jobs, applications, and the planned LaTeX CV builder, see [[cv-builder-plan]]).
 
 ## Body-analogy app family
 All ManuLab apps are named after organs and all run on ManuSpine:
@@ -26,4 +26,4 @@ manuHunter is a sibling of these (a job-search app rather than an organ), built 
 ## Bigger vision
 ManuSpine being generic and public is a prerequisite for splitting cabeleira.net into separate repos and for a Cardano Catalyst Fund16 grant. The long-term ManuLab vision is a federated clinical-research platform with patient-sovereign health data (Cardano: Aiken contracts, Identus DIDs, Hydra micropayments, Midnight ZK proofs). That vision is manuBeat/ManuLab territory, not manuHunter's, but it explains why the framework is kept generic.
 
-**Why this matters for manuHunter:** framework-level infrastructure is shared and reused across all these apps, so framework fixes flow upstream and are not reinvented per app. See CLAUDE.md "Framework upstream" and "Reference project".
+**Why this matters for manuHunter:** framework-level infrastructure is shared and reused across all these apps, so framework fixes flow upstream and are not reinvented per app. See CLAUDE.md "Framework upstream" and "Source of truth".
