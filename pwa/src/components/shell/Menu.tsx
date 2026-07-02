@@ -1,7 +1,6 @@
 // Menu — the hamburger slide-out drawer.
 // - Links to every major section of the app
 // - Shows the logged-in user's name and email
-// - Dark / light mode toggle
 // - Logout button
 import {
   IonContent,
@@ -13,7 +12,6 @@ import {
   IonMenu,
   IonMenuToggle,
   IonNote,
-  IonToggle,
 } from '@ionic/react';
 
 import { useLocation } from 'react-router-dom';
@@ -22,17 +20,16 @@ import {
   documentTextOutline,
   constructOutline, folderOutline,
   personOutline, peopleOutline, logOutOutline,
-  moonOutline, homeOutline, briefcaseOutline,
+  homeOutline, briefcaseOutline,
   downloadOutline, layersOutline,
+  keyOutline, settingsOutline,
 } from 'ionicons/icons';
-import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { ROUTE } from '../../constants';
 import './Menu.css';
 
 const Menu: React.FC = () => {
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
   const { user, isAdmin, isUser, logout } = useAuth();
 
   const handleLogout = () => {
@@ -96,7 +93,9 @@ const Menu: React.FC = () => {
 
         <IonList id="labels-list">
           <IonListHeader>Account</IonListHeader>
-          {navItem(ROUTE.ACCOUNT, personOutline, 'My Account')}
+          {navItem(ROUTE.PROFILE,  personOutline,   'Profile')}
+          {navItem(ROUTE.ACCOUNT,  keyOutline,      'Account')}
+          {navItem(ROUTE.SETTINGS, settingsOutline, 'Settings')}
 
           {user && (
             <IonItem lines="none" button detail={false} onClick={handleLogout}>
@@ -104,12 +103,6 @@ const Menu: React.FC = () => {
               <IonLabel>Logout</IonLabel>
             </IonItem>
           )}
-
-          <IonItem lines="none">
-            <IonIcon aria-hidden="true" slot="start" icon={moonOutline} />
-            <IonLabel>Dark Mode</IonLabel>
-            <IonToggle slot="end" checked={theme === 'dark'} onIonChange={toggleTheme} />
-          </IonItem>
         </IonList>
 
       </IonContent>

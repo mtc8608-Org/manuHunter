@@ -3,14 +3,16 @@ import { IonApp, IonRouterOutlet, IonSplitPane, setupIonicReact } from '@ionic/r
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { IonReactRouter } from '@ionic/react-router';
-import { Route } from 'react-router-dom';
+import { Route, Redirect } from 'react-router-dom';
 import Menu from './components/shell/Menu';
 import PrivateRoute from './components/routing/PrivateRoute';
 import AdminRoute from './components/routing/AdminRoute';
 import UserRoute from './components/routing/UserRoute';
 import Landing from './pages/public/Landing';
 import SignIn from './pages/public/SignIn';
-import Account from './pages/Account';
+import Profile from './pages/user/Profile';
+import UserAccount from './pages/user/Account';
+import Settings from './pages/user/Settings';
 import Applications from './pages/jobs/Applications';
 import Artifacts from './pages/jobs/Artifacts';
 import Cv from './pages/cv/Cv';
@@ -59,7 +61,11 @@ const App: React.FC = () => {
                 <Route path={ROUTE.SIGNIN}  exact={true} component={SignIn} />
 
                 {/* Authenticated */}
-                <PrivateRoute path={ROUTE.ACCOUNT}      exact={true} component={Account} />
+                <PrivateRoute path={ROUTE.PROFILE}      exact={true} component={Profile} />
+                <PrivateRoute path={ROUTE.ACCOUNT}      exact={true} component={UserAccount} />
+                <PrivateRoute path={ROUTE.SETTINGS}     exact={true} component={Settings} />
+                {/* legacy deep-link */}
+                <Route path="/account" exact={true} render={() => <Redirect to={ROUTE.PROFILE} />} />
                 <PrivateRoute path={ROUTE.APPLICATIONS} exact={true} component={Applications} />
                 <PrivateRoute path={ROUTE.ARTIFACTS}    exact={true} component={Artifacts} />
                 <PrivateRoute path={ROUTE.CV}           exact={true} component={Cv} />
