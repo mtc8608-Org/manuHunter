@@ -37,7 +37,7 @@ type SplitPageLayoutProps = SplitPageLayoutBase & (
   | { left: React.ReactNode; leftTabs?: never }
 );
 
-const RIGHT_HEADER_STYLE: React.CSSProperties = {
+export const RIGHT_HEADER_STYLE: React.CSSProperties = {
   padding: '4px 0 8px', borderBottom: '1px solid var(--ion-border-color)', marginBottom: 12, minHeight: 40,
 };
 

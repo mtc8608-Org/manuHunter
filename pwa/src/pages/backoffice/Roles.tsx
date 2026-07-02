@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  IonButton, IonItem, IonLabel, IonText,
+  IonItem, IonLabel, IonText,
 } from '@ionic/react';
 import { ComponentResults } from '../../interfaces/types';
 import ApiService, { Role } from '../../services/Api';
@@ -56,11 +56,6 @@ const Roles: React.FC = () => {
   // New-role modal
   const [createOpen, setCreateOpen]   = useState(false);
   const [createError, setCreateError] = useState('');
-
-  // Delete confirmation
-  const [deleteTarget, setDeleteTarget] = useState<Role | null>(null);
-  const [deleteError, setDeleteError]   = useState('');
-  const [deleting, setDeleting]         = useState(false);
 
   const [editorMsg, setEditorMsg]     = useState('');
   const [editorError, setEditorError] = useState('');
@@ -125,23 +120,6 @@ const Roles: React.FC = () => {
     }
   };
 
-  const openDelete = (r: Role) => { setDeleteError(''); setDeleteTarget(r); };
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    setDeleteError('');
-    try {
-      await ApiService.deleteRole(deleteTarget.id);
-      if (selected?.id === deleteTarget.id) setSelected(null);
-      setDeleteTarget(null);
-      setListVersion(v => v + 1);
-    } catch (e: any) {
-      setDeleteError(e?.message ?? 'Failed to delete role');
-    } finally {
-      setDeleting(false);
-    }
-  };
-
 
 /*
  ██████    ████████  ██      ██  ██████    ████████  ██████
@@ -162,9 +140,9 @@ const Roles: React.FC = () => {
           content: (
             /* ═══════════════════════════════════════════════════════════
                  Component list
-                 End-slot budget: single badge + Delete only — no icon, no
-                 badge stack, or IonLabel starves and the name vanishes
-                 (page-template.md rule 5).                                 */
+                 No delete — roles are create/edit only (deleteRole exists
+                 server-side but is deliberately unexposed). Keep the item
+                 end slot to the single tier badge (page-template.md rule 5). */
             <ResourcePanel<Role>
               fetcher={rolesFetcher}
               refreshToken={listVersion}
@@ -175,7 +153,6 @@ const Roles: React.FC = () => {
               getBadge={r => ({ label: r.tier, color: TIER_COLOR[r.tier] ?? 'primary' })}
               onSelect={selectRole}
               onAdd={openCreate}
-              onDelete={openDelete}
             />
           ),
         },
@@ -228,29 +205,6 @@ const Roles: React.FC = () => {
             onSubmit={handleCreateRole}
             submitLabel="Create Role"
           />
-        )}
-      </ModalShell>
-
-      <ModalShell isOpen={!!deleteTarget} onDismiss={() => setDeleteTarget(null)} title="Delete role">
-        {deleteTarget?.is_system ? (
-          <IonItem lines="none">
-            <IonLabel style={{ whiteSpace: 'normal' }}>
-              <strong>{deleteTarget.name}</strong> is a system role and cannot be deleted.
-            </IonLabel>
-          </IonItem>
-        ) : (
-          <>
-            <IonItem lines="none">
-              <IonLabel style={{ whiteSpace: 'normal' }}>
-                This permanently deletes the role <strong>{deleteTarget?.name}</strong>. Roles still
-                assigned to users cannot be deleted — reassign those users first.
-              </IonLabel>
-            </IonItem>
-            {deleteError && <IonItem lines="none"><IonText color="danger" style={{ fontSize: 13 }}>{deleteError}</IonText></IonItem>}
-            <IonButton expand="block" color="danger" disabled={deleting} onClick={confirmDelete}>
-              {deleting ? 'Deleting…' : 'Delete role'}
-            </IonButton>
-          </>
         )}
       </ModalShell>
     </SplitPageLayout>

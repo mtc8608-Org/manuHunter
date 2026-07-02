@@ -208,9 +208,9 @@ export const CV_FORM = {
   TEMPLATE: 'form_cv_template',
 } as const;
 
-// The user_profile shape this app seeds (03-init-cv.sql: the CV identity block).
-// Rendered in Account's Profile card; saved via upsertUserProfile.
-export const USER_PROFILE_FORM = 'form_cv_profile';
+// The user_profile shape this app seeds (03-init-cv.sql). Rendered on the user
+// Profile page; saved via upsertUserProfile; read by CV compile (cvAssemble).
+export const USER_PROFILE_FORM = 'form_user_profile';
 
 // Framework user-management forms (backoffice Users page). Source: 01-init-db.sql d000/d010.
 export const USER_FORM = {
@@ -384,7 +384,9 @@ export const PANEL_CONFIG = {
 export const ROUTE = {
   LANDING:       '/',
   SIGNIN:        '/signin',
-  ACCOUNT:       '/account',
+  PROFILE:       '/folder/Profile',
+  ACCOUNT:       '/folder/Account',
+  SETTINGS:      '/folder/Settings',
   APPLICATIONS:  '/folder/Applications',
   ARTIFACTS:     '/folder/Artifacts',
   CV:            '/folder/CVs',
@@ -427,9 +429,15 @@ export const AREA_NAV = {
     { label: 'Users',         route: '/folder/Users',         icon: 'people'        },
     { label: 'Roles',         route: '/folder/Roles',         icon: 'key'           },
   ],
+  USER: [
+    { label: 'Profile',  route: '/folder/Profile',  icon: 'person'   },
+    { label: 'Account',  route: '/folder/Account',  icon: 'key'      },
+    { label: 'Settings', route: '/folder/Settings', icon: 'settings' },
+  ],
 } as const;
 
-// Section groupings — used by AppHeader nav (authenticated users only)
+// Section groupings — used by AppHeader nav (authenticated users only).
+// The User area is deliberately absent: it is reached via the header person icon.
 export const NAV_SECTIONS = [
   { label: 'Job Applications', routes: ['/folder/Applications', '/folder/Artifacts'],                 link: '/folder/Applications',  icon: 'briefcase'  },
   { label: 'CV Builder',   routes: ['/folder/CVs', '/folder/GeneratedCVs', '/folder/Templates'],      link: '/folder/CVs',           icon: 'document-text' },
