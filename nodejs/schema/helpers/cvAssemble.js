@@ -26,7 +26,7 @@ const loadChildren = async (id) => {
 // The per-user identity block, shared across all of that user's CVs.
 const loadProfile = async (ownerId) => {
   if (!ownerId) return {};
-  const res = await pool.query('SELECT data FROM cv_profile WHERE owner_id = $1::uuid', [ownerId]);
+  const res = await pool.query('SELECT data FROM user_profile WHERE owner_id = $1::uuid', [ownerId]);
   return res.rows[0]?.data ?? {};
 };
 

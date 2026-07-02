@@ -167,6 +167,12 @@ export const APP_FILE_KINDS = [
   { value: 'cover', label: 'Cover Letter' },
   { value: 'jd',    label: 'Job Description' },
 ] as const;
+
+// Standalone FormRenderer forms used by the Applications page (seeded, global).
+export const APP_FORM = {
+  APPLICATION: 'form_application',
+  EVENT:       'form_application_event',
+} as const;
 // #endregion
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -199,8 +205,17 @@ export const CV_EDITOR_ID: Record<string, string> = {
 // Standalone forms used directly by the CV page.
 export const CV_FORM = {
   DOCUMENT: 'form_cv_document',   // per-CV details (title / tagline / template) + New CV modal
-  PROFILE:  'form_cv_profile',    // per-user identity block (name / phone / socials)
   TEMPLATE: 'form_cv_template',
+} as const;
+
+// The user_profile shape this app seeds (03-init-cv.sql: the CV identity block).
+// Rendered in Account's Profile card; saved via upsertUserProfile.
+export const USER_PROFILE_FORM = 'form_cv_profile';
+
+// Framework user-management forms (backoffice Users page). Source: 01-init-db.sql d000/d010.
+export const USER_FORM = {
+  EDITOR: 'form_user_editor',   // role select + active check (Detail column)
+  CREATE: 'form_user_create',   // email / password / role (New modal)
 } as const;
 
 // The shared default template (owner_id NULL). UUID hardcoded from the seed.
@@ -284,6 +299,21 @@ export const PANEL_CONFIG = {
       type: { enabled: true, options: APP_STATUS },
     },
   },
+  USER_FILES: {
+    title: 'Artifacts', emptyMessage: 'No files yet. Upload one or save a CV.',
+    add: { enabled: true, label: 'Upload' },
+    filter: { text: { enabled: true, placeholder: 'Search files…' }, type: { enabled: false } },
+  },
+  APP_FILES: {
+    title: 'Attached', emptyMessage: 'Nothing attached yet.',
+    add: { enabled: true, label: 'Attach' },
+    filter: { text: { enabled: false }, type: { enabled: false } },
+  },
+  APP_TIMELINE: {
+    title: 'Timeline', emptyMessage: 'No events logged.',
+    add: { enabled: true, label: 'Log' },
+    filter: { text: { enabled: false }, type: { enabled: false } },
+  },
   CONTENT_PAGES: {
     title: 'Pages', emptyMessage: 'No pages yet.',
     add: { enabled: true, label: 'New Page' },
@@ -320,6 +350,14 @@ export const PANEL_CONFIG = {
     add: { enabled: true, label: 'New template' },
     filter: { text: { enabled: false }, type: { enabled: false } },
   },
+  USERS: {
+    title: 'Users', emptyMessage: 'No users found.',
+    add: { enabled: true, label: 'New user' },
+    filter: {
+      text: { enabled: true, placeholder: 'Search by email…' },
+      type: { enabled: true, options: ['user', 'admin'] },
+    },
+  },
 } as const satisfies Record<string, PanelConfig>;
 // #endregion
 ///////////////////////////////////////////////////////////////////////////////
@@ -333,6 +371,7 @@ export const ROUTE = {
   SIGNIN:        '/signin',
   ACCOUNT:       '/account',
   APPLICATIONS:  '/folder/Applications',
+  ARTIFACTS:     '/folder/Artifacts',
   CV:            '/folder/CVs',
   GENERATED_CVS: '/folder/GeneratedCVs',
   CV_TEMPLATES:  '/folder/Templates',
@@ -340,6 +379,7 @@ export const ROUTE = {
   CONFIGURATION: '/folder/Configuration',
   FILES:         '/folder/Files',
   CONTENT:       '/folder/Content',
+  USERS:         '/folder/Users',
 } as const;
 
 // #endregion
@@ -353,7 +393,8 @@ export const AREA_NAV = {
   // Two distinct areas: job applications, and the CV builder. Each area is one
   // shared list used by all its pages, in the same order (see [[code-reuse-rule]]).
   APPLICATIONS: [
-    { label: 'Applications',   route: '/folder/Applications', icon: 'briefcase' },
+    { label: 'Applications', route: '/folder/Applications', icon: 'briefcase' },
+    { label: 'Artifacts',    route: '/folder/Artifacts',    icon: 'folder' },
   ],
   CV_BUILDER: [
     { label: 'CVs',            route: '/folder/CVs',          icon: 'document-text' },
@@ -367,15 +408,16 @@ export const AREA_NAV = {
     { label: 'Content',       route: '/folder/Content',       icon: 'document-text' },
     { label: 'Files',         route: '/folder/Files',         icon: 'folder'        },
     { label: 'Configuration', route: '/folder/Configuration', icon: 'construct'     },
+    { label: 'Users',         route: '/folder/Users',         icon: 'people'        },
   ],
 } as const;
 
 // Section groupings — used by AppHeader nav (authenticated users only)
 export const NAV_SECTIONS = [
-  { label: 'Applications', routes: ['/folder/Applications'],                                          link: '/folder/Applications',  icon: 'briefcase'  },
+  { label: 'Job Applications', routes: ['/folder/Applications', '/folder/Artifacts'],                 link: '/folder/Applications',  icon: 'briefcase'  },
   { label: 'CV Builder',   routes: ['/folder/CVs', '/folder/GeneratedCVs', '/folder/Templates'],      link: '/folder/CVs',           icon: 'document-text' },
   { label: 'Surveys',    routes: ['/folder/Surveys'],                                             link: '/folder/Surveys',       icon: 'clipboard'  },
-  { label: 'Backoffice', routes: ['/folder/Content', '/folder/Files', '/folder/Configuration'],   link: '/folder/Content',       icon: 'construct',  adminOnly: true },
+  { label: 'Backoffice', routes: ['/folder/Content', '/folder/Files', '/folder/Configuration', '/folder/Users'],   link: '/folder/Content',       icon: 'construct',  adminOnly: true },
 ] as const;
 // #endregion
 ///////////////////////////////////////////////////////////////////////////////

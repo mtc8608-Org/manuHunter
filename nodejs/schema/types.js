@@ -218,13 +218,26 @@ const CvArtifactType = new GraphQLObjectType({
   }),
 });
 
-// The per-user identity block (cv_profile). Its `data` holds name, phone,
-// email, location and social links, shared across all of the user's CVs.
-const CvProfileType = new GraphQLObjectType({
-  name: 'CvProfile',
+// Per-user display data (user_profile). `data` is form-driven JSONB — the app
+// defines its shape via a seeded FormRenderer form (here: the CV identity block).
+const UserProfileType = new GraphQLObjectType({
+  name: 'UserProfile',
   fields: () => ({
     owner_id: { type: GraphQLID },
     data:     { type: GraphQLJSON },
+  }),
+});
+
+// Keychain entry metadata (registry ⋈ user_secrets). The raw secret value is
+// write-only over the API and never appears in any GraphQL type.
+const UserSecretType = new GraphQLObjectType({
+  name: 'UserSecret',
+  fields: () => ({
+    name:       { type: GraphQLString },
+    label:      { type: GraphQLString },
+    isSet:      { type: GraphQLBoolean },
+    last4:      { type: GraphQLString },
+    updated_at: { type: GraphQLString },
   }),
 });
 
@@ -236,7 +249,8 @@ module.exports = {
   CvComponentType,
   CvComponentInputType,
   CvArtifactType,
-  CvProfileType,
+  UserProfileType,
+  UserSecretType,
   SurveyType,
   SurveyAnswerType,
   SurveyComponentType,

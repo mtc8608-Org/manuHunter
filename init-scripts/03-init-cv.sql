@@ -67,16 +67,8 @@ CREATE TABLE cv_artifacts (
     label            TEXT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
--- Per-user identity block (name, phone, socials, location). One row per user,
--- reused by every CV that user owns; only the per-CV tagline lives on the
--- cvDocument. owner_id is UNIQUE (not the PK) and nullable so the sample profile
--- can be seeded NULL and re-stamped to the admin at startup, exactly like the
--- sample cv_components (backend.js). New users get their row on first save.
-CREATE TABLE cv_profile (
-    id       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    owner_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,  -- NULL = unclaimed seed
-    data     JSONB NOT NULL DEFAULT '{}'::jsonb
-);
+-- The per-user identity block lives in the framework user_profile table
+-- (01-init-db.sql); this app defines its shape via form_cv_profile below.
 
 CREATE INDEX idx_cv_components_owner ON cv_components(owner_id);
 CREATE INDEX idx_cv_artifacts_owner  ON cv_artifacts(owner_id);
@@ -176,8 +168,8 @@ INSERT INTO components_relationships (parent_id, child_id, position) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf50', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf54',  2),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf50', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf5a',  3);
 
--- cvProfile editor — the per-user identity block, saved via upsertCvProfile and
--- merged into every CV at compile time. Field keys match cv_profile.data.
+-- cvProfile editor — the per-user identity block, saved via upsertUserProfile
+-- and merged into every CV at compile time. Field keys match user_profile.data.
 INSERT INTO components (id, name, type, data, options) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf60', 'form_cv_profile',     'form',  '{"text": "Profile"}',       '{"label": "form_cv_profile"}'),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf61', 'cv_prof_name',        'input', '{"text": "Full name"}',     '{"label": "name"}'),

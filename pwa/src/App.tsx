@@ -11,6 +11,7 @@ import Landing from './pages/public/Landing';
 import SignIn from './pages/public/SignIn';
 import Account from './pages/Account';
 import Applications from './pages/jobs/Applications';
+import Artifacts from './pages/jobs/Artifacts';
 import Cv from './pages/cv/Cv';
 import GeneratedCvs from './pages/cv/GeneratedCvs';
 import CvTemplates from './pages/cv/CvTemplates';
@@ -18,6 +19,7 @@ import Surveys from './pages/surveys/Surveys';
 import Content from './pages/backoffice/Content';
 import Files from './pages/backoffice/Files';
 import Configuration from './pages/backoffice/Configuration';
+import Users from './pages/backoffice/Users';
 import { ROUTE } from './constants';
 
 /* Core CSS required for Ionic components to work properly */
@@ -57,6 +59,7 @@ const App: React.FC = () => {
                 {/* Authenticated */}
                 <PrivateRoute path={ROUTE.ACCOUNT}      exact={true} component={Account} />
                 <PrivateRoute path={ROUTE.APPLICATIONS} exact={true} component={Applications} />
+                <PrivateRoute path={ROUTE.ARTIFACTS}    exact={true} component={Artifacts} />
                 <PrivateRoute path={ROUTE.CV}           exact={true} component={Cv} />
                 <PrivateRoute path={ROUTE.GENERATED_CVS} exact={true} component={GeneratedCvs} />
                 <PrivateRoute path={ROUTE.CV_TEMPLATES}  exact={true} component={CvTemplates} />
@@ -66,6 +69,7 @@ const App: React.FC = () => {
                 <AdminRoute path={ROUTE.CONTENT}       exact={true} component={Content} />
                 <AdminRoute path={ROUTE.FILES}         exact={true} component={Files} />
                 <AdminRoute path={ROUTE.CONFIGURATION} exact={true} component={Configuration} />
+                <AdminRoute path={ROUTE.USERS}         exact={true} component={Users} />
 
               </IonRouterOutlet>
             </IonSplitPane>

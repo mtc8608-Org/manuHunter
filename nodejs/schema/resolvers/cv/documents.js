@@ -8,7 +8,7 @@ const {
   GraphQLList, GraphQLString, GraphQLID, GraphQLBoolean, GraphQLNonNull,
 } = require('graphql');
 const { pool } = require('../../../db');
-const { CvComponentType, CvComponentInputType, CvArtifactType, CvProfileType, GraphQLJSON } = require('../../types');
+const { CvComponentType, CvComponentInputType, CvArtifactType, GraphQLJSON } = require('../../types');
 const {
   postCvComponent, updateCvComponent, deleteCvComponent,
   deleteCvRelation, relateCvComponents,
@@ -100,15 +100,6 @@ const queries = {
       const scope = readScope(ctx, params);
       const res = await pool.query(`SELECT * FROM cv_components WHERE id = $1::uuid${scope}`, params);
       return res.rows[0] || null;
-    },
-  },
-  cvProfile: {
-    type: CvProfileType,
-    async resolve(_, __, ctx) {
-      const uid = userId(ctx);
-      if (!uid) return null;
-      const res = await pool.query('SELECT owner_id, data FROM cv_profile WHERE owner_id = $1::uuid', [uid]);
-      return res.rows[0] || { owner_id: uid, data: {} };
     },
   },
   cvArtifactList: {
@@ -233,22 +224,6 @@ const mutations = {
     async resolve(_, { id }, ctx) {
       await assertWritable(id, ctx);
       return deleteCvComponent(id);
-    },
-  },
-  // The caller's own identity block; upserted by owner_id (one row per user).
-  upsertCvProfile: {
-    type: CvProfileType,
-    args: { data: { type: GraphQLJSON } },
-    async resolve(_, { data }, ctx) {
-      const uid = userId(ctx);
-      if (!uid) throw new Error('Authentication required');
-      const res = await pool.query(
-        `INSERT INTO cv_profile (owner_id, data) VALUES ($1::uuid, $2::jsonb)
-         ON CONFLICT (owner_id) DO UPDATE SET data = EXCLUDED.data
-         RETURNING owner_id, data`,
-        [uid, data ?? {}]
-      );
-      return res.rows[0];
     },
   },
 };

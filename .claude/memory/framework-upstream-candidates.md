@@ -88,9 +88,11 @@ were made here first (during CV builder work); port them to manuSpine when conve
   Port wholesale; each app seeds its own profile form.
 
 - **`ResourcePanel.getBadge` accepts `Badge | Badge[]`** — `pwa/src/components/shell/ResourcePanel.tsx`
-  exports `ResourceBadge` and renders one `IonBadge` per entry when an array is returned (Users page
-  shows status + role). Backward-compatible two-line change; `AreaShell`/`Menu` also gained the
-  `people` icon. Bundle with the shell tweaks above.
+  exports `ResourceBadge`; an array renders as a vertical stack of smaller (10px) badges in one
+  end slot (Users page shows status + role). Must stay stacked: two side-by-side end-slot badges
+  starve `IonLabel` of width in the narrow left column (it collapses to 0 and the text wraps
+  char-by-char, stretching the item). Single-badge behaviour unchanged; `AreaShell`/`Menu` also
+  gained the `people` icon. Bundle with the shell tweaks above.
 
 - **(Maybe) LaTeX compile service** — the `python/api/domains/latex/` compile endpoint
   (pdflatex, shell-escape disabled, temp dir, timeout) + the Node bridge pattern is

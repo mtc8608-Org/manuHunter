@@ -21,7 +21,7 @@ import {
   clipboardOutline,
   documentTextOutline,
   constructOutline, folderOutline,
-  personOutline, logOutOutline,
+  personOutline, peopleOutline, logOutOutline,
   moonOutline, homeOutline, briefcaseOutline,
   downloadOutline, layersOutline,
 } from 'ionicons/icons';
@@ -65,8 +65,9 @@ const Menu: React.FC = () => {
         </IonList>
 
         <IonList>
-          <IonListHeader>Applications</IonListHeader>
+          <IonListHeader>Job Applications</IonListHeader>
           {navItem(ROUTE.APPLICATIONS, briefcaseOutline, 'Applications')}
+          {navItem(ROUTE.ARTIFACTS, folderOutline, 'Artifacts')}
         </IonList>
 
         <IonList>
@@ -87,6 +88,7 @@ const Menu: React.FC = () => {
             {navItem(ROUTE.CONTENT,       documentTextOutline, 'Content')}
             {navItem(ROUTE.FILES,         folderOutline,       'Files')}
             {navItem(ROUTE.CONFIGURATION, constructOutline,    'Configuration')}
+            {navItem(ROUTE.USERS,         peopleOutline,       'Users')}
           </IonList>
         )}
 

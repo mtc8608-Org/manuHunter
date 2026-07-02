@@ -61,6 +61,10 @@ server.use('/api', require('./routes/cv/compile'));
 
 server.listen(PORT, () => console.log('Server running on PORT http://localhost:' + PORT));
 
+if (!/^[0-9a-fA-F]{64}$/.test(process.env.SECRETS_MASTER_KEY ?? '')) {
+  console.warn('-> SECRETS_MASTER_KEY missing or not 64 hex chars — the user_secrets keychain is disabled (generate one with `openssl rand -hex 32` and add it to .env)');
+}
+
 (async () => {
   const MAX = 15;
   for (let attempt = 1; attempt <= MAX; attempt++) {
@@ -95,10 +99,10 @@ server.listen(PORT, () => console.log('Server running on PORT http://localhost:'
           if (stamped.rowCount) console.log(`-> Stamped ${stamped.rowCount} seed CV node(s) to admin`);
           // Same claim for the seed identity profile (owner_id NULL until now).
           const prof = await pool.query(
-            `UPDATE cv_profile SET owner_id = $1 WHERE owner_id IS NULL`,
+            `UPDATE user_profile SET owner_id = $1 WHERE owner_id IS NULL`,
             [adminId]
           );
-          if (prof.rowCount) console.log('-> Stamped seed CV profile to admin');
+          if (prof.rowCount) console.log('-> Stamped seed user profile to admin');
         }
       } catch (cvErr) {
         console.warn('-> CV seed ownership warning:', cvErr.message);

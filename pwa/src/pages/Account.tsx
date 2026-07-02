@@ -1,25 +1,20 @@
+// Page: Account — self-service account settings (profile, integrations, password).
+// Reads/writes: user_profile + user_secrets (GraphQL), /change-password (REST).
+// Authenticated. User management is the admin backoffice Users page.
 import React, { useEffect, useState } from 'react';
 import {
-  IonPage, IonContent, IonButtons,
+  IonPage, IonContent,
   IonGrid, IonRow, IonCol,
   IonCard, IonCardContent, IonCardHeader, IonCardTitle,
   IonItem, IonLabel, IonInput, IonButton, IonText, IonSpinner,
-  IonSelect, IonSelectOption, IonBadge, IonToggle,
+  IonBadge,
 } from '@ionic/react';
-import ApiService from '../services/Api';
+import ApiService, { UserSecret } from '../services/Api';
 import AppHeader from '../components/shell/AppHeader';
 import FormRenderer from '../components/forms/FormRenderer';
 import { ComponentResults } from '../interfaces/types';
-import { CV_FORM } from '../constants';
+import { USER_PROFILE_FORM } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
-
-interface User {
-  id: string;
-  email: string;
-  role: string;
-  is_active: boolean;
-  created_at: string;
-}
 
 const formatDate = (val: string) => {
   const d = new Date(val);
@@ -27,7 +22,7 @@ const formatDate = (val: string) => {
 };
 
 const Account: React.FC = () => {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
 
   // ── change password ──────────────────────────────────────────────────────────
   const [currentPw, setCurrentPw]   = useState('');
@@ -54,72 +49,62 @@ const Account: React.FC = () => {
     }
   };
 
-  // ── CV identity profile (shared by every CV the user builds) ──────────────────
-  const [cvProfileForm, setCvProfileForm] = useState<ComponentResults | null>(null);
-  const [cvProfileData, setCvProfileData] = useState<Record<string, any>>({});
-  const [cvProfileMsg, setCvProfileMsg]   = useState('');
+  // ── profile (form-driven; in this app the CV identity block) ──────────────────
+  const [profileForm, setProfileForm] = useState<ComponentResults | null>(null);
+  const [profileData, setProfileData] = useState<Record<string, any>>({});
+  const [profileMsg, setProfileMsg]   = useState('');
 
   useEffect(() => {
-    ApiService.getComponentByName(CV_FORM.PROFILE).then(f => setCvProfileForm((f ?? null) as ComponentResults | null));
-    ApiService.getCvProfile().then(p => setCvProfileData(p?.data ?? {}));
+    ApiService.getComponentByName(USER_PROFILE_FORM).then(f => setProfileForm((f ?? null) as ComponentResults | null));
+    ApiService.getUserProfile().then(p => setProfileData(p?.data ?? {}));
   }, []);
 
-  const handleSaveCvProfile = async (values: any) => {
-    setCvProfileMsg('');
-    const saved = await ApiService.upsertCvProfile(values);
-    setCvProfileData(saved?.data ?? values);
-    setCvProfileMsg('Identity saved. It applies to every CV on next compile.');
+  const handleSaveProfile = async (values: any) => {
+    setProfileMsg('');
+    const saved = await ApiService.upsertUserProfile(values);
+    setProfileData(saved?.data ?? values);
+    setProfileMsg('Identity saved. It applies to every CV on next compile.');
   };
 
-  // ── user management (admin only) ─────────────────────────────────────────────
-  const [users, setUsers]           = useState<User[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
-  const [newEmail, setNewEmail]     = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole]       = useState('user');
-  const [createError, setCreateError] = useState('');
-  const [creating, setCreating]     = useState(false);
+  // ── integrations (user_secrets keychain — set/clear only, never read back) ────
+  const [secrets, setSecrets]           = useState<UserSecret[]>([]);
+  const [secretInputs, setSecretInputs] = useState<Record<string, string>>({});
+  const [secretBusy, setSecretBusy]     = useState<string | null>(null);
+  const [secretError, setSecretError]   = useState('');
 
-  const loadUsers = async () => {
-    setUsersLoading(true);
-    try {
-      const data = await ApiService.getUsers();
-      setUsers(data);
-    } catch (e) { console.error('Error loading users:', e); }
-    finally { setUsersLoading(false); }
+  const loadSecrets = async () => {
+    setSecrets(await ApiService.getUserSecrets());
   };
 
-  useEffect(() => {
-    if (isAdmin) loadUsers();
-  }, [isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadSecrets(); }, []);
 
-  const handleCreateUser = async () => {
-    setCreateError('');
-    if (!newEmail || !newPassword) { setCreateError('Email and password required'); return; }
-    setCreating(true);
+  const handleSaveSecret = async (name: string) => {
+    const value = (secretInputs[name] ?? '').trim();
+    if (!value) return;
+    setSecretError('');
+    setSecretBusy(name);
     try {
-      await ApiService.createUser(newEmail, newPassword, newRole);
-      setNewEmail(''); setNewPassword(''); setNewRole('user');
-      await loadUsers();
+      await ApiService.setUserSecret(name, value);
+      setSecretInputs(prev => ({ ...prev, [name]: '' }));
+      await loadSecrets();
     } catch (e: any) {
-      setCreateError(e.message ?? 'Failed to create user');
+      setSecretError(e.message ?? 'Failed to save key');
     } finally {
-      setCreating(false);
+      setSecretBusy(null);
     }
   };
 
-  const handleToggleActive = async (u: User) => {
+  const handleClearSecret = async (name: string) => {
+    setSecretError('');
+    setSecretBusy(name);
     try {
-      await ApiService.patchUser(u.id, { is_active: !u.is_active });
-      await loadUsers();
-    } catch (e) { console.error('Error updating user:', e); }
-  };
-
-  const handleChangeRole = async (u: User, role: string) => {
-    try {
-      await ApiService.patchUser(u.id, { role });
-      await loadUsers();
-    } catch (e) { console.error('Error changing role:', e); }
+      await ApiService.clearUserSecret(name);
+      await loadSecrets();
+    } catch (e: any) {
+      setSecretError(e.message ?? 'Failed to clear key');
+    } finally {
+      setSecretBusy(null);
+    }
   };
 
   return (
@@ -131,10 +116,10 @@ const Account: React.FC = () => {
           <IonRow>
             <IonCol size="12" sizeMd="6" offsetMd="3">
 
-              {/* ── Profile info ──────────────────────────────────── */}
+              {/* ── Account info ──────────────────────────────────── */}
               <IonCard>
                 <IonCardHeader>
-                  <IonCardTitle>Profile</IonCardTitle>
+                  <IonCardTitle>Account</IonCardTitle>
                 </IonCardHeader>
                 <IonCardContent>
                   <IonItem lines="full">
@@ -152,10 +137,10 @@ const Account: React.FC = () => {
                 </IonCardContent>
               </IonCard>
 
-              {/* ── CV identity ───────────────────────────────────── */}
+              {/* ── Profile ───────────────────────────────────────── */}
               <IonCard style={{ marginTop: 12 }}>
                 <IonCardHeader>
-                  <IonCardTitle>CV Identity</IonCardTitle>
+                  <IonCardTitle>Profile</IonCardTitle>
                 </IonCardHeader>
                 <IonCardContent>
                   <IonItem lines="none">
@@ -163,15 +148,72 @@ const Account: React.FC = () => {
                       Name, contact and links used on every CV you build. Only the per-CV tagline is set in the CV builder.
                     </IonLabel>
                   </IonItem>
-                  {cvProfileMsg && <IonItem lines="none"><IonText color="success" style={{ fontSize: 13 }}>{cvProfileMsg}</IonText></IonItem>}
-                  {cvProfileForm && (
+                  {profileMsg && <IonItem lines="none"><IonText color="success" style={{ fontSize: 13 }}>{profileMsg}</IonText></IonItem>}
+                  {profileForm && (
                     <FormRenderer
-                      component={cvProfileForm}
-                      defaultValues={cvProfileData}
-                      onSubmit={handleSaveCvProfile}
+                      component={profileForm}
+                      defaultValues={profileData}
+                      onSubmit={handleSaveProfile}
                       submitLabel="Save Identity"
                     />
                   )}
+                </IonCardContent>
+              </IonCard>
+
+              {/* ── Integrations ──────────────────────────────────── */}
+              <IonCard style={{ marginTop: 12 }}>
+                <IonCardHeader>
+                  <IonCardTitle>Integrations</IonCardTitle>
+                </IonCardHeader>
+                <IonCardContent>
+                  <IonItem lines="none">
+                    <IonLabel style={{ whiteSpace: 'normal', fontSize: 13, color: 'var(--ion-color-medium)' }}>
+                      API keys are stored encrypted and used only by the server. Once saved, a key is never shown again — only its last four characters.
+                    </IonLabel>
+                  </IonItem>
+                  {secretError && <IonItem lines="none"><IonText color="danger" style={{ fontSize: 13 }}>{secretError}</IonText></IonItem>}
+                  {secrets.map(s => (
+                    <React.Fragment key={s.name}>
+                      <IonItem lines="none">
+                        <IonLabel>
+                          <p style={{ fontWeight: 500 }}>{s.label}</p>
+                          {s.isSet && (
+                            <p style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>
+                              ····{s.last4}{s.updated_at ? ` · updated ${formatDate(s.updated_at)}` : ''}
+                            </p>
+                          )}
+                        </IonLabel>
+                        <IonBadge slot="end" color={s.isSet ? 'success' : 'medium'}>
+                          {s.isSet ? 'Set' : 'Not set'}
+                        </IonBadge>
+                      </IonItem>
+                      <IonItem lines="full">
+                        <IonInput
+                          label={s.isSet ? 'Replace key' : 'Add key'}
+                          labelPlacement="stacked"
+                          type="password"
+                          value={secretInputs[s.name] ?? ''}
+                          onIonInput={e => setSecretInputs(prev => ({ ...prev, [s.name]: e.detail.value ?? '' }))}
+                        />
+                        <IonButton
+                          slot="end" size="small"
+                          disabled={secretBusy === s.name || !(secretInputs[s.name] ?? '').trim()}
+                          onClick={() => handleSaveSecret(s.name)}
+                        >
+                          {secretBusy === s.name ? <IonSpinner name="dots" /> : 'Save'}
+                        </IonButton>
+                        {s.isSet && (
+                          <IonButton
+                            slot="end" size="small" fill="clear" color="danger"
+                            disabled={secretBusy === s.name}
+                            onClick={() => handleClearSecret(s.name)}
+                          >
+                            Clear
+                          </IonButton>
+                        )}
+                      </IonItem>
+                    </React.Fragment>
+                  ))}
                 </IonCardContent>
               </IonCard>
 
@@ -203,94 +245,6 @@ const Account: React.FC = () => {
                   </IonButton>
                 </IonCardContent>
               </IonCard>
-
-              {/* ── User management (admin only) ──────────────────── */}
-              {isAdmin && (
-                <>
-                  <IonCard style={{ marginTop: 12 }}>
-                    <IonCardHeader>
-                      <IonCardTitle>Create User</IonCardTitle>
-                    </IonCardHeader>
-                    <IonCardContent>
-                      {createError && <IonItem lines="none"><IonText color="danger">{createError}</IonText></IonItem>}
-                      <IonItem lines="full">
-                        <IonInput label="Email" labelPlacement="stacked" type="email"
-                          value={newEmail} onIonInput={e => setNewEmail(e.detail.value ?? '')} />
-                      </IonItem>
-                      <IonItem lines="full">
-                        <IonInput label="Password" labelPlacement="stacked" type="password"
-                          value={newPassword} onIonInput={e => setNewPassword(e.detail.value ?? '')} />
-                      </IonItem>
-                      <IonItem lines="full">
-                        <IonSelect label="Role" labelPlacement="stacked"
-                          value={newRole} onIonChange={e => setNewRole(e.detail.value)}
-                        >
-                          <IonSelectOption value="user">User</IonSelectOption>
-                          <IonSelectOption value="admin">Admin</IonSelectOption>
-                        </IonSelect>
-                      </IonItem>
-                      <IonButton expand="block" style={{ marginTop: 16 }}
-                        disabled={creating || !newEmail || !newPassword}
-                        onClick={handleCreateUser}
-                      >
-                        {creating ? <IonSpinner name="dots" /> : 'Create User'}
-                      </IonButton>
-                    </IonCardContent>
-                  </IonCard>
-
-                  <IonCard style={{ marginTop: 12 }}>
-                    <IonCardHeader>
-                      <IonItem lines="none">
-                        <IonCardTitle slot="start">Users</IonCardTitle>
-                        <IonButtons slot="end">
-                          <IonButton size="small" onClick={loadUsers} disabled={usersLoading}>
-                            {usersLoading ? <IonSpinner name="dots" /> : 'Refresh'}
-                          </IonButton>
-                        </IonButtons>
-                      </IonItem>
-                    </IonCardHeader>
-                    <IonCardContent>
-                      {users.map(u => (
-                        <IonItem key={u.id} lines="full">
-                          <IonLabel>
-                            <p style={{ fontWeight: 500 }}>{u.email}</p>
-                            <p style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>
-                              Joined {formatDate(u.created_at)}
-                            </p>
-                          </IonLabel>
-                          <IonSelect
-                            slot="end"
-                            value={u.role}
-                            interface="popover"
-                            style={{ minWidth: 80 }}
-                            onIonChange={e => handleChangeRole(u, e.detail.value)}
-                          >
-                            <IonSelectOption value="user">User</IonSelectOption>
-                            <IonSelectOption value="admin">Admin</IonSelectOption>
-                          </IonSelect>
-                          <IonBadge
-                            slot="end"
-                            color={u.is_active ? 'success' : 'medium'}
-                            style={{ marginLeft: 8, marginRight: 8 }}
-                          >
-                            {u.is_active ? 'Active' : 'Inactive'}
-                          </IonBadge>
-                          <IonToggle
-                            slot="end"
-                            checked={u.is_active}
-                            onIonChange={() => handleToggleActive(u)}
-                          />
-                        </IonItem>
-                      ))}
-                      {!usersLoading && users.length === 0 && (
-                        <IonItem lines="none">
-                          <IonLabel color="medium">No users found.</IonLabel>
-                        </IonItem>
-                      )}
-                    </IonCardContent>
-                  </IonCard>
-                </>
-              )}
 
             </IonCol>
           </IonRow>

@@ -410,6 +410,13 @@ const deleteFile = async (id: string) => {
   return res.json();
 };
 
+// Fetch a stored file's bytes (auth header) for download or preview.
+const fetchFileBlob = async (id: string): Promise<Blob> => {
+  const res = await fetch(`${API_BASE}${ENDPOINT.FILES}/${id}/download`, { headers: getAuthHeader() });
+  if (!res.ok) throw new Error('Download failed');
+  return res.blob();
+};
+
 // ── applications (jobs domain) ─────────────────────────────────────────────────
 
 const APPLICATION_FIELDS = `
@@ -516,6 +523,15 @@ const uploadApplicationFile = async (applicationId: string, file: File, kind: st
   return res.json();
 };
 
+// Link an already-stored file (e.g. a generated CV) to an application — no upload.
+const linkApplicationFile = async (application_id: string, file_id: string, kind: string) => {
+  return gql(`
+    mutation Link($application_id: ID!, $file_id: ID!, $kind: String) {
+      linkApplicationFile(application_id: $application_id, file_id: $file_id, kind: $kind)
+    }
+  `, { application_id, file_id, kind });
+};
+
 const unlinkApplicationFile = async (application_id: string, file_id: string) => {
   try {
     return await gql(`
@@ -585,24 +601,56 @@ const deleteCvDocument = async (id: string) => {
   } catch (e) { console.error('Error deleting cv document:', e); }
 };
 
-export interface CvProfile { owner_id: string | null; data: Record<string, any>; }
+export interface UserProfile { owner_id: string | null; data: Record<string, any>; }
 
-// The caller's per-user identity block (name, phone, socials, location).
-const getCvProfile = async (): Promise<CvProfile | null> => {
+// The caller's own profile (form-driven display data; here the CV identity block).
+const getUserProfile = async (): Promise<UserProfile | null> => {
   try {
-    const result = await gql(`query { cvProfile { owner_id data } }`);
-    return result?.data?.cvProfile ?? null;
-  } catch (e) { console.error('Error fetching cv profile:', e); return null; }
+    const result = await gql(`query { userProfile { owner_id data } }`);
+    return result?.data?.userProfile ?? null;
+  } catch (e) { console.error('Error fetching user profile:', e); return null; }
 };
 
-const upsertCvProfile = async (data: Record<string, any>): Promise<CvProfile | null> => {
+const upsertUserProfile = async (data: Record<string, any>): Promise<UserProfile | null> => {
   try {
     const result = await gql(`
-      mutation UpsertCvProfile($data: JSON) {
-        upsertCvProfile(data: $data) { owner_id data }
+      mutation UpsertUserProfile($data: JSON) {
+        upsertUserProfile(data: $data) { owner_id data }
       }`, { data });
-    return result?.data?.upsertCvProfile ?? null;
-  } catch (e) { console.error('Error saving cv profile:', e); throw e; }
+    return result?.data?.upsertUserProfile ?? null;
+  } catch (e) { console.error('Error saving user profile:', e); throw e; }
+};
+
+// ── User secrets keychain — metadata only, the raw value is write-only ────────
+
+export interface UserSecret {
+  name: string; label: string; isSet: boolean;
+  last4: string | null; updated_at: string | null;
+}
+
+const getUserSecrets = async (): Promise<UserSecret[]> => {
+  try {
+    const result = await gql(`query { userSecrets { name label isSet last4 updated_at } }`);
+    return result?.data?.userSecrets ?? [];
+  } catch (e) { console.error('Error fetching user secrets:', e); return []; }
+};
+
+const setUserSecret = async (name: string, value: string): Promise<UserSecret | null> => {
+  try {
+    const result = await gql(`
+      mutation SetUserSecret($name: String!, $value: String!) {
+        setUserSecret(name: $name, value: $value) { name label isSet last4 updated_at }
+      }`, { name, value });
+    return result?.data?.setUserSecret ?? null;
+  } catch (e) { console.error('Error saving user secret:', e); throw e; }
+};
+
+const clearUserSecret = async (name: string): Promise<boolean> => {
+  try {
+    const result = await gql(`
+      mutation ClearUserSecret($name: String!) { clearUserSecret(name: $name) }`, { name });
+    return result?.data?.clearUserSecret ?? false;
+  } catch (e) { console.error('Error clearing user secret:', e); throw e; }
 };
 
 export interface CvArtifact {
@@ -679,12 +727,10 @@ const generateContent = async (
   userText: string,
   onDelta: (text: string) => void,
   onNode:  (node: GenNode) => void,
-  apiKey:  string,
 ): Promise<GenResult> => {
   const form = new FormData();
   form.append('history', JSON.stringify(history));
   form.append('userText', userText);
-  form.append('apiKey', apiKey);
   for (const f of files) form.append('files', f);
   const res = await fetch(`${API_BASE}${ENDPOINT.GENERATE_CONTENT}`, {
     method: 'POST',
@@ -733,16 +779,17 @@ const ApiService = {
   getSurveys, getSurveyAnswers, getSurveyStats, submitAnswer, updateAnswer, deleteAnswer, createSurvey,
   // auth & user management
   changePassword, getUsers, createUser, patchUser,
+  // account self-service (profile + secrets keychain)
+  getUserProfile, upsertUserProfile, getUserSecrets, setUserSecret, clearUserSecret,
   // files
-  getFiles, uploadFile, patchFile, deleteFile,
+  getFiles, uploadFile, patchFile, deleteFile, fetchFileBlob,
   // applications (jobs domain)
   getApplications, getApplication, createApplication, updateApplication, deleteApplication,
-  addApplicationEvent, uploadApplicationFile, unlinkApplicationFile,
+  addApplicationEvent, uploadApplicationFile, linkApplicationFile, unlinkApplicationFile,
   // cv builder
   getCvComponentList, getCvComponent, createCvComponent, updateCvComponent, deleteCvComponent,
   createCvRelation, deleteCvRelation, swapCvPositions, getCvComponentParents,
   getCvDocuments, getCvDocument, createCvDocument, updateCvDocument, deleteCvDocument,
-  getCvProfile, upsertCvProfile,
   getCvArtifacts, compileCv, saveCvPdf, fetchCvArtifactBlob, deleteCvArtifact,
   // AI content generation
   generateContent,
