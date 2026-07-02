@@ -4,10 +4,13 @@ const { pool, minioClient, upload, BUCKET } = require('../../db');
 
 const router = express.Router();
 
+// Owner-scoped: a user sees only the files they uploaded; admin sees all.
 router.get('/files', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
   try {
-    const result = await pool.query('SELECT * FROM files ORDER BY created_at DESC');
+    const result = req.user.role === 'admin'
+      ? await pool.query('SELECT * FROM files ORDER BY created_at DESC')
+      : await pool.query('SELECT * FROM files WHERE uploaded_by = $1::uuid ORDER BY created_at DESC', [req.user.id]);
     res.json(result.rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -73,14 +76,19 @@ router.patch('/files/:id', async (req, res) => {
   }
 });
 
+// Owner or admin may delete. Deleting the files row cascades application_files
+// and cv_artifacts via their ON DELETE CASCADE FKs, so links detach automatically.
 router.delete('/files/:id', async (req, res) => {
-  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+  if (!req.user) return res.status(401).json({ error: 'Authentication required' });
   try {
     const result = await pool.query('SELECT * FROM files WHERE id = $1::uuid', [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'File not found' });
     const file = result.rows[0];
+    if (req.user.role !== 'admin' && file.uploaded_by !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorised for this file' });
+    }
     await pool.query('DELETE FROM files WHERE id = $1::uuid', [req.params.id]);
-    await minioClient.removeObject(BUCKET, file.key);
+    await minioClient.removeObject(BUCKET, file.key).catch(e => console.warn('MinIO removal failed (row deleted anyway):', e.message));
     res.json({ success: true });
   } catch (e) {
     console.error('Delete error:', e.message);

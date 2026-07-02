@@ -1,32 +1,39 @@
-// Page: Applications — the job-search tracker.
-// Left: every application, filterable by text and status.
-// Right: the selected application's details, the pasted job description, attached
-//        artifacts (CV / cover / JD) with download, and a response/status timeline.
-// Reads/writes: applications / application_events (GraphQL) and the framework
-//               files table + MinIO (REST) for artifacts.
+// Page: Applications — the job-application tracker (jobs domain).
+// Reads/writes: applications / application_events (GraphQL) + the framework files
+//               table + MinIO (REST) for artifacts. Owner-scoped; admin sees all.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  IonButton, IonSpinner, IonItem, IonLabel, IonInput, IonTextarea,
-  IonSelect, IonSelectOption, IonIcon, IonText, IonBadge, IonNote,
+  IonButton, IonSpinner, IonItem, IonLabel, IonText,
+  IonSelect, IonSelectOption, IonIcon, IonBadge, IonNote,
   IonCard, IonCardContent, IonCardHeader, IonCardTitle,
 } from '@ionic/react';
 import {
-  briefcaseOutline, documentTextOutline, downloadOutline,
-  trashOutline, addOutline, openOutline, timeOutline,
+  briefcaseOutline, documentTextOutline, timeOutline, openOutline,
 } from 'ionicons/icons';
-import { Application, ApplicationFile } from '../../interfaces/types';
+import { Application, ApplicationFile, ApplicationEvent, FileRecord, ComponentResults } from '../../interfaces/types';
 import ApiService from '../../services/Api';
 import SplitPageLayout from '../../components/shell/SplitPageLayout';
 import TabPanel from '../../components/shell/TabPanel';
 import EmptyState from '../../components/shell/EmptyState';
 import ModalShell from '../../components/shell/ModalShell';
 import ResourcePanel from '../../components/shell/ResourcePanel';
+import DataTable from '../../components/shell/DataTable';
+import FormRenderer from '../../components/forms/FormRenderer';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  API_BASE, ENDPOINT, AREA_NAV, PANEL_CONFIG,
-  APP_STATUS, APP_STATUS_COLOR, APP_FILE_KINDS,
+  AREA_NAV, PANEL_CONFIG, APP_STATUS, APP_STATUS_COLOR, APP_FILE_KINDS, APP_FORM,
 } from '../../constants';
+
+
+/*
+ ██    ██  ████████  ██        ██████    ████████  ██████      ██████
+ ██    ██  ██        ██        ██    ██  ██        ██    ██  ██
+ ████████  ██████    ██        ██████    ██████    ██████      ████
+ ██    ██  ██        ██        ██        ██        ██    ██        ██
+ ██    ██  ████████  ████████  ██        ████████  ██    ██  ██████
+                                                                       */
+
 
 const formatDate = (val: string | null) => {
   if (!val) return '—';
@@ -35,114 +42,152 @@ const formatDate = (val: string | null) => {
 };
 
 const statusColor = (s: string) => APP_STATUS_COLOR[s] ?? 'medium';
+const fileMeta = (f: FileRecord) =>
+  [f.size ? `${Math.max(1, Math.round(f.size / 1024))} KB` : null, formatDate(f.created_at)].filter(Boolean).join(' · ');
 
-const EVENT_TYPES = [
-  { value: 'response',      label: 'Response received' },
-  { value: 'interview',     label: 'Interview' },
-  { value: 'status_change', label: 'Status change' },
-  { value: 'note',          label: 'Note' },
-];
+// Table view (DataTable) — flat columns + pretty headers.
+const appFlatten = (a: Application): Record<string, string> => ({
+  company:  a.company ?? '',
+  role:     a.role ?? '',
+  status:   a.status ?? '',
+  location: a.location ?? '',
+  source:   a.source ?? '',
+  salary:   a.salary ?? '',
+  contact:  a.contact ?? '',
+});
+const APP_TABLE_LABELS = new Map<string, string>([
+  ['company', 'Company'], ['role', 'Role'], ['status', 'Status'],
+  ['location', 'Location'], ['source', 'Source'], ['salary', 'Salary'], ['contact', 'Contact'],
+]);
 
-// Empty form used for the "New application" modal.
-const blankForm: Partial<Application> = {
-  company: '', role: '', location: '', source: '', job_url: '',
-  status: 'draft', salary: '', contact: '', applied_at: '',
-  job_description: '', notes: '',
-};
 
 const Applications: React.FC = () => {
+
   const { logout } = useAuth();
 
-  const [listVersion, setListVersion] = useState(0);
-  const [search, setSearch]           = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [selected, setSelected]       = useState<Application | null>(null);
+
+/*
+   ██████  ██████████    ████    ██████████  ████████
+ ██            ██      ██    ██      ██      ██
+   ████        ██      ████████      ██      ██████
+       ██      ██      ██    ██      ██      ██
+ ██████        ██      ██    ██      ██      ████████
+                                                       */
+
+
+  const [listVersion, setListVersion]     = useState(0);
+  const [detailVersion, setDetailVersion] = useState(0);
+  const [tableVersion, setTableVersion]   = useState(1);   // >0 → DataTable auto-loads
+  const [search, setSearch]               = useState('');
+  const [statusFilter, setStatusFilter]   = useState('');
+  const [selected, setSelected]           = useState<Application | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // create / edit modal
+  // Seeded FormRenderer forms
+  const [appForm, setAppForm]     = useState<ComponentResults | null>(null);
+  const [eventForm, setEventForm] = useState<ComponentResults | null>(null);
+
+  // Application editor modal — editTarget is the row being edited (null = create).
   const [editorOpen, setEditorOpen]   = useState(false);
-  const [editingId, setEditingId]     = useState<string | null>(null);
-  const [form, setForm]               = useState<Partial<Application>>(blankForm);
-  const [saving, setSaving]           = useState(false);
-  const [saveError, setSaveError]     = useState('');
+  const [editTarget, setEditTarget]   = useState<Application | null>(null);
+  const [editorError, setEditorError] = useState('');
 
-  // upload modal
-  const [uploadOpen, setUploadOpen]   = useState(false);
-  const [uploadFile, setUploadFile]   = useState<File | null>(null);
-  const [uploadKind, setUploadKind]   = useState('cv');
-  const [uploading, setUploading]     = useState(false);
-  const [uploadError, setUploadError] = useState('');
+  // Log-event modal
+  const [eventOpen, setEventOpen] = useState(false);
 
-  // add-event modal
-  const [eventOpen, setEventOpen]     = useState(false);
-  const [eventType, setEventType]     = useState('response');
-  const [eventDetail, setEventDetail] = useState('');
-  const [savingEvent, setSavingEvent] = useState(false);
+  // Attach-existing-file modal (pick from the user's files → link)
+  const [attachOpen, setAttachOpen]   = useState(false);
+  const [attachPick, setAttachPick]   = useState<string | null>(null);
+  const [attachKind, setAttachKind]   = useState('cv');
+  const [attaching, setAttaching]     = useState(false);
 
-  const refreshList = () => setListVersion(v => v + 1);
+  // Delete-application confirm
+  const [deleteAppOpen, setDeleteAppOpen] = useState(false);
+  const [deletingApp, setDeletingApp]     = useState(false);
+
+
+/*
+ ██          ████      ████    ██████
+ ██        ██    ██  ██    ██  ██    ██
+ ██        ██    ██  ████████  ██    ██
+ ██        ██    ██  ██    ██  ██    ██
+ ████████    ████    ██    ██  ██████
+                                         */
+
+
+  useEffect(() => {
+    ApiService.getComponentByName(APP_FORM.APPLICATION).then(f => setAppForm((f ?? null) as ComponentResults | null));
+    ApiService.getComponentByName(APP_FORM.EVENT).then(f => setEventForm((f ?? null) as ComponentResults | null));
+  }, []);
 
   const loadDetail = async (id: string) => {
     setLoadingDetail(true);
     try {
       const full = await ApiService.getApplication(id);
       setSelected(full);
+      setDetailVersion(v => v + 1);
     } finally {
       setLoadingDetail(false);
     }
   };
 
-  const handleSelect = (app: Application) => { loadDetail(app.id); };
+  const appFetcher      = () => ApiService.getApplications();
+  const filesFetcher    = () => ApiService.getFiles();
+  const attachedFetcher = async (): Promise<ApplicationFile[]> => selected?.files ?? [];
+  const eventsFetcher   = async (): Promise<ApplicationEvent[]> => selected?.events ?? [];
 
-  // ── create / edit ────────────────────────────────────────────────────────────
-  const openCreate = () => {
-    setEditingId(null);
-    setForm(blankForm);
-    setSaveError('');
-    setEditorOpen(true);
-  };
 
-  const openEdit = () => {
-    if (!selected) return;
-    setEditingId(selected.id);
-    setForm({
-      company: selected.company, role: selected.role, location: selected.location ?? '',
-      source: selected.source ?? '', job_url: selected.job_url ?? '', status: selected.status,
-      salary: selected.salary ?? '', contact: selected.contact ?? '',
-      applied_at: selected.applied_at ?? '', job_description: selected.job_description ?? '',
-      notes: selected.notes ?? '',
-    });
-    setSaveError('');
-    setEditorOpen(true);
-  };
+/*
+ ██    ██    ████    ██      ██  ██████    ██        ████████  ██████      ██████
+ ██    ██  ██    ██  ████    ██  ██    ██  ██        ██        ██    ██  ██
+ ████████  ████████  ██  ██  ██  ██    ██  ██        ██████    ██████      ████
+ ██    ██  ██    ██  ██    ████  ██    ██  ██        ██        ██    ██        ██
+ ██    ██  ██    ██  ██      ██  ██████    ████████  ████████  ██    ██  ██████
+                                                                                   */
 
-  const setField = (k: keyof Application, v: string) => setForm(f => ({ ...f, [k]: v }));
 
-  const handleSave = async () => {
-    if (!form.company || !form.role) { setSaveError('Company and role are required.'); return; }
-    setSaving(true);
-    setSaveError('');
+  // ── Application create / edit (FormRenderer over form_application) ─────────────
+  const editingId = editTarget?.id ?? null;
+  const openEditor = (row: Application | null) => { setEditTarget(row); setEditorError(''); setEditorOpen(true); };
+  const openCreate = () => openEditor(null);
+  const openEdit   = () => { if (selected) openEditor(selected); };
+
+  const handleSaveApplication = async (values: any) => {
+    if (!values.company || !values.role) { setEditorError('Company and role are required.'); return; }
+    setEditorError('');
     try {
-      const payload = { ...form, applied_at: form.applied_at || undefined };
+      const payload = { ...values, applied_at: values.applied_at || undefined };
       const saved = editingId
         ? await ApiService.updateApplication(editingId, payload)
         : await ApiService.createApplication(payload);
       setEditorOpen(false);
-      refreshList();
+      setListVersion(v => v + 1);
+      setTableVersion(v => v + 1);
       if (saved) await loadDetail(saved.id);
     } catch (e: any) {
       if (e?.status === 401) { logout(); return; }
-      setSaveError(e?.message ?? 'Save failed');
-    } finally {
-      setSaving(false);
+      setEditorError(e?.message ?? 'Save failed');
     }
   };
 
-  const handleDelete = async () => {
+  // Delete straight from the table row (DataTable also drops it from its own state).
+  const deleteFromTable = async (id: string) => {
+    await ApiService.deleteApplication(id);
+    setListVersion(v => v + 1);
+    if (selected?.id === id) setSelected(null);
+  };
+
+  const confirmDeleteApp = async () => {
     if (!selected) return;
-    if (!window.confirm(`Delete application to ${selected.company}?`)) return;
-    await ApiService.deleteApplication(selected.id);
-    setSelected(null);
-    refreshList();
+    setDeletingApp(true);
+    try {
+      await ApiService.deleteApplication(selected.id);
+      setDeleteAppOpen(false);
+      setSelected(null);
+      setListVersion(v => v + 1);
+    } finally {
+      setDeletingApp(false);
+    }
   };
 
   // Quick status change from the detail header (also logs a timeline event).
@@ -150,328 +195,268 @@ const Applications: React.FC = () => {
     if (!selected || status === selected.status) return;
     await ApiService.updateApplication(selected.id, { status });
     await ApiService.addApplicationEvent(selected.id, 'status_change', `→ ${status}`);
-    refreshList();
+    setListVersion(v => v + 1);
     await loadDetail(selected.id);
   };
 
-  // ── artifacts ──────────────────────────────────────────────────────────────
-  const downloadArtifact = async (file: ApplicationFile) => {
-    const token = localStorage.getItem('auth_token');
-    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-    const res = await fetch(`${API_BASE}${ENDPOINT.FILES}/${file.id}/download`, { headers });
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = file.filename; a.click();
-    URL.revokeObjectURL(url);
+  // ── Attached files (attach existing / unlink / download) ──────────────────────
+  const download = async (id: string, filename: string) => {
+    try {
+      const blob = await ApiService.fetchFileBlob(id);
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch (e) { console.error('Download failed:', e); }
   };
 
-  const openUpload = () => { setUploadFile(null); setUploadKind('cv'); setUploadError(''); setUploadOpen(true); };
-
-  const handleUpload = async () => {
-    if (!selected || !uploadFile) return;
-    setUploading(true); setUploadError('');
+  const openAttach = () => { setAttachPick(null); setAttachKind('cv'); setAttachOpen(true); };
+  const handleAttach = async () => {
+    if (!selected || !attachPick) return;
+    setAttaching(true);
     try {
-      await ApiService.uploadApplicationFile(selected.id, uploadFile, uploadKind);
-      setUploadOpen(false);
+      await ApiService.linkApplicationFile(selected.id, attachPick, attachKind);
+      setAttachOpen(false);
       await loadDetail(selected.id);
-    } catch (e: any) {
-      if (e?.status === 401) { logout(); return; }
-      setUploadError(e?.message ?? 'Upload failed');
     } finally {
-      setUploading(false);
+      setAttaching(false);
     }
   };
 
-  const handleUnlinkFile = async (file: ApplicationFile) => {
+  const handleUnlink = async (file: ApplicationFile) => {
     if (!selected) return;
     await ApiService.unlinkApplicationFile(selected.id, file.id);
     await loadDetail(selected.id);
   };
 
-  // ── events ─────────────────────────────────────────────────────────────────
-  const openEvent = () => { setEventType('response'); setEventDetail(''); setEventOpen(true); };
-
-  const handleAddEvent = async () => {
+  // ── Timeline events (FormRenderer over form_application_event) ─────────────────
+  const openEvent = () => setEventOpen(true);
+  const handleAddEvent = async (values: any) => {
     if (!selected) return;
-    setSavingEvent(true);
-    try {
-      await ApiService.addApplicationEvent(selected.id, eventType, eventDetail || undefined);
-      setEventOpen(false);
-      await loadDetail(selected.id);
-    } finally {
-      setSavingEvent(false);
-    }
+    await ApiService.addApplicationEvent(selected.id, values.event_type || 'note', values.detail || undefined);
+    setEventOpen(false);
+    await loadDetail(selected.id);
   };
+
+
+/*
+ ██████    ████████  ██      ██  ██████    ████████  ██████
+ ██    ██  ██        ████    ██  ██    ██  ██        ██    ██
+ ██████    ██████    ██  ██  ██  ██    ██  ██████    ██████
+ ██    ██  ██        ██    ████  ██    ██  ██        ██    ██
+ ██    ██  ████████  ██      ██  ██████    ████████  ██    ██
+                                                               */
+
+
+  const editorDefaults = editTarget ?? { status: 'draft' };
 
   return (
     <SplitPageLayout
       navItems={AREA_NAV.APPLICATIONS}
-      title="Applications"
-      leftTabs={[{
-        label: 'Applications',
-        content: (
-          <ResourcePanel<Application>
-            fetcher={() => ApiService.getApplications()}
-            refreshToken={listVersion}
-            config={PANEL_CONFIG.APPLICATIONS_LIST}
-            selectedId={selected?.id}
-            getLabel={a => a.role}
-            getSubLabel={a => [a.company, a.location].filter(Boolean).join(' · ') || a.company}
-            getIcon={() => briefcaseOutline}
-            getBadge={a => ({ label: a.status, color: statusColor(a.status) })}
-            onSelect={handleSelect}
-            onAdd={openCreate}
-            filterFn={(a, text, type) => {
-              const t = text.toLowerCase();
-              const matchesText = !t || a.company.toLowerCase().includes(t) || a.role.toLowerCase().includes(t);
-              const matchesType = !type || a.status === type;
-              return matchesText && matchesType;
-            }}
-            filter={{
-              text: search, onTextChange: setSearch,
-              typeValue: statusFilter, onTypeChange: setStatusFilter,
-            }}
-          />
-        ),
-      }]}
+      title="Job Applications"
+      leftTabs={[
+        {
+          label: 'Applications',
+          content: (
+            /* ═══════════════════════════════════════════════════════════
+                 Component list                                            */
+            <ResourcePanel<Application>
+              fetcher={appFetcher}
+              refreshToken={listVersion}
+              config={PANEL_CONFIG.APPLICATIONS_LIST}
+              selectedId={selected?.id}
+              getLabel={a => a.role}
+              getSubLabel={a => [a.company, a.location].filter(Boolean).join(' · ') || a.company}
+              getIcon={() => briefcaseOutline}
+              getBadge={a => ({ label: a.status, color: statusColor(a.status) })}
+              onSelect={a => loadDetail(a.id)}
+              onAdd={openCreate}
+              filterFn={(a, text, type) => {
+                const t = text.toLowerCase();
+                return (!t || a.company.toLowerCase().includes(t) || a.role.toLowerCase().includes(t))
+                    && (!type || a.status === type);
+              }}
+              filter={{ text: search, onTextChange: setSearch, typeValue: statusFilter, onTypeChange: setStatusFilter }}
+            />
+          ),
+        },
+      ]}
       right={
-        <TabPanel tabs={[{
+        <TabPanel tabs={[
+          {
           label: 'Detail',
           content: loadingDetail ? (
             <div style={{ textAlign: 'center', padding: 24 }}><IonSpinner /></div>
           ) : !selected ? (
             <EmptyState message="Select an application to view details" />
           ) : (
-          <>
-            {/* Overview */}
-            <IonCard>
-              <IonCardHeader>
-                <IonItem lines="none">
-                  <IonCardTitle slot="start">{selected.role}</IonCardTitle>
-                  <IonButton slot="end" fill="outline" size="small" onClick={openEdit}>Edit</IonButton>
-                  <IonButton slot="end" color="danger" fill="outline" size="small" onClick={handleDelete}>
-                    <IonIcon slot="icon-only" icon={trashOutline} />
-                  </IonButton>
-                </IonItem>
-              </IonCardHeader>
-              <IonCardContent>
-                <IonItem lines="full">
-                  <IonSelect
-                    label="Status" labelPlacement="stacked" interface="popover"
-                    value={selected.status} onIonChange={e => handleStatusChange(e.detail.value)}
-                  >
-                    {APP_STATUS.map(s => (
-                      <IonSelectOption key={s} value={s}>{s}</IonSelectOption>
-                    ))}
-                  </IonSelect>
-                  <IonBadge slot="end" color={statusColor(selected.status)}>{selected.status}</IonBadge>
-                </IonItem>
-                {[
-                  { label: 'Company',  value: selected.company },
-                  { label: 'Location', value: selected.location ?? '—' },
-                  { label: 'Source',   value: selected.source ?? '—' },
-                  { label: 'Salary',   value: selected.salary ?? '—' },
-                  { label: 'Contact',  value: selected.contact ?? '—' },
-                  { label: 'Applied',  value: formatDate(selected.applied_at) },
-                ].map(row => (
-                  <IonItem key={row.label} lines="full">
-                    <IonLabel>
-                      <p style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>{row.label}</p>
-                      <p>{row.value}</p>
-                    </IonLabel>
-                  </IonItem>
-                ))}
-                {selected.job_url && (
-                  <IonItem lines="full" href={selected.job_url} target="_blank" rel="noreferrer">
-                    <IonIcon slot="start" icon={openOutline} />
-                    <IonLabel>Open job posting</IonLabel>
-                  </IonItem>
-                )}
-                {selected.notes && (
+            <>
+              {/* ═══════════════════════════════════════════════════════════
+                   Overview                                                  */}
+              <IonCard>
+                <IonCardHeader>
                   <IonItem lines="none">
-                    <IonLabel className="ion-text-wrap">
-                      <p style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>Notes</p>
-                      <p>{selected.notes}</p>
-                    </IonLabel>
+                    <IonCardTitle slot="start">{selected.role}</IonCardTitle>
+                    <IonButton slot="end" fill="outline" size="small" onClick={openEdit}>Edit</IonButton>
+                    <IonButton slot="end" color="danger" fill="outline" size="small" onClick={() => setDeleteAppOpen(true)}>Delete</IonButton>
                   </IonItem>
-                )}
-              </IonCardContent>
-            </IonCard>
-
-            {/* Artifacts */}
-            <IonCard style={{ marginTop: 12 }}>
-              <IonCardHeader>
-                <IonItem lines="none">
-                  <IonCardTitle slot="start">Artifacts</IonCardTitle>
-                  <IonButton slot="end" size="small" color="success" onClick={openUpload}>
-                    <IonIcon slot="start" icon={addOutline} />Attach
-                  </IonButton>
-                </IonItem>
-              </IonCardHeader>
-              <IonCardContent>
-                {!selected.files?.length ? (
-                  <IonNote>No CV or documents attached yet.</IonNote>
-                ) : selected.files.map(f => (
-                  <IonItem key={f.id} lines="full">
-                    <IonIcon slot="start" icon={documentTextOutline} />
-                    <IonLabel className="ion-text-wrap">
-                      <p>{f.filename}</p>
-                      <p style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>{f.kind}</p>
-                    </IonLabel>
-                    <IonButton slot="end" fill="clear" size="small" onClick={() => downloadArtifact(f)}>
-                      <IonIcon slot="icon-only" icon={downloadOutline} />
-                    </IonButton>
-                    <IonButton slot="end" fill="clear" color="danger" size="small" onClick={() => handleUnlinkFile(f)}>
-                      <IonIcon slot="icon-only" icon={trashOutline} />
-                    </IonButton>
+                </IonCardHeader>
+                <IonCardContent>
+                  <IonItem lines="full">
+                    <IonSelect label="Status" labelPlacement="stacked" interface="popover"
+                      value={selected.status} onIonChange={e => handleStatusChange(e.detail.value)}>
+                      {APP_STATUS.map(s => <IonSelectOption key={s} value={s}>{s}</IonSelectOption>)}
+                    </IonSelect>
+                    <IonBadge slot="end" color={statusColor(selected.status)}>{selected.status}</IonBadge>
                   </IonItem>
-                ))}
-              </IonCardContent>
-            </IonCard>
+                  {[
+                    { label: 'Company',  value: selected.company },
+                    { label: 'Location', value: selected.location ?? '—' },
+                    { label: 'Source',   value: selected.source ?? '—' },
+                    { label: 'Salary',   value: selected.salary ?? '—' },
+                    { label: 'Contact',  value: selected.contact ?? '—' },
+                    { label: 'Applied',  value: formatDate(selected.applied_at) },
+                  ].map(row => (
+                    <IonItem key={row.label} lines="full">
+                      <IonLabel><p style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>{row.label}</p><p>{row.value}</p></IonLabel>
+                    </IonItem>
+                  ))}
+                  {selected.job_url && (
+                    <IonItem lines="full" href={selected.job_url} target="_blank" rel="noreferrer">
+                      <IonIcon slot="start" icon={openOutline} /><IonLabel>Open job posting</IonLabel>
+                    </IonItem>
+                  )}
+                  {selected.notes && (
+                    <IonItem lines="none">
+                      <IonLabel className="ion-text-wrap"><p style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>Notes</p><p>{selected.notes}</p></IonLabel>
+                    </IonItem>
+                  )}
+                </IonCardContent>
+              </IonCard>
 
-            {/* Timeline */}
-            <IonCard style={{ marginTop: 12 }}>
-              <IonCardHeader>
-                <IonItem lines="none">
-                  <IonCardTitle slot="start">Timeline</IonCardTitle>
-                  <IonButton slot="end" size="small" fill="outline" onClick={openEvent}>
-                    <IonIcon slot="start" icon={addOutline} />Log
-                  </IonButton>
-                </IonItem>
-              </IonCardHeader>
-              <IonCardContent>
-                {!selected.events?.length ? (
-                  <IonNote>No events logged.</IonNote>
-                ) : selected.events.map(ev => (
-                  <IonItem key={ev.id} lines="full">
-                    <IonIcon slot="start" icon={timeOutline} />
-                    <IonLabel className="ion-text-wrap">
-                      <p>{ev.event_type}{ev.detail ? `: ${ev.detail}` : ''}</p>
-                      <p style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>{formatDate(ev.occurred_at)}</p>
-                    </IonLabel>
-                  </IonItem>
-                ))}
-              </IonCardContent>
-            </IonCard>
+              {/* ═══════════════════════════════════════════════════════════
+                   Job Description                                           */}
+              <IonCard style={{ marginTop: 12 }}>
+                <IonCardHeader><IonCardTitle>Job Description</IonCardTitle></IonCardHeader>
+                <IonCardContent>
+                  {selected.job_description
+                    ? <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0 }}>{selected.job_description}</pre>
+                    : <IonNote>No description saved.</IonNote>}
+                </IonCardContent>
+              </IonCard>
 
-            {/* Job description */}
-            <IonCard style={{ marginTop: 12 }}>
-              <IonCardHeader><IonCardTitle>Job Description</IonCardTitle></IonCardHeader>
-              <IonCardContent>
-                {selected.job_description ? (
-                  <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0 }}>
-                    {selected.job_description}
-                  </pre>
-                ) : <IonNote>No description saved.</IonNote>}
-              </IonCardContent>
-            </IonCard>
-          </>
+              {/* ═══════════════════════════════════════════════════════════
+                   Attached artifacts                                        */}
+              <div style={{ marginTop: 12 }}>
+                <ResourcePanel<ApplicationFile>
+                  fetcher={attachedFetcher}
+                  refreshToken={detailVersion}
+                  config={PANEL_CONFIG.APP_FILES}
+                  getLabel={f => f.filename}
+                  getSubLabel={f => f.kind}
+                  getIcon={() => documentTextOutline}
+                  onSelect={f => download(f.id, f.filename)}
+                  onAdd={openAttach}
+                  onDelete={f => handleUnlink(f)}
+                />
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════════
+                   Timeline                                                  */}
+              <div style={{ marginTop: 12 }}>
+                <ResourcePanel<ApplicationEvent>
+                  fetcher={eventsFetcher}
+                  refreshToken={detailVersion}
+                  config={PANEL_CONFIG.APP_TIMELINE}
+                  getLabel={ev => ev.event_type + (ev.detail ? `: ${ev.detail}` : '')}
+                  getSubLabel={ev => formatDate(ev.occurred_at)}
+                  getIcon={() => timeOutline}
+                  onSelect={() => {}}
+                  onAdd={openEvent}
+                />
+              </div>
+            </>
           ),
-        }]} />
+          },
+          {
+            label: 'Table',
+            content: (
+              /* ═══════════════════════════════════════════════════════════
+                   Table                                                     */
+              <DataTable<Application>
+                title="Applications"
+                fetcher={() => ApiService.getApplications()}
+                flattenRow={appFlatten}
+                leadingCols={[{ label: 'Applied', format: a => formatDate(a.applied_at) }]}
+                labelMap={APP_TABLE_LABELS}
+                filterOptions={{ status: [...APP_STATUS] }}
+                exportFilename="applications"
+                refreshToken={tableVersion}
+                onEdit={row => openEditor(row)}
+                onDelete={deleteFromTable}
+              />
+            ),
+          },
+        ]} />
       }
     >
-      {/* ── Create / Edit modal ── */}
-      <ModalShell
-        isOpen={editorOpen}
-        onDismiss={() => setEditorOpen(false)}
-        title={editingId ? 'Edit Application' : 'New Application'}
-        dismissLabel="Close"
-      >
-        <div style={{ padding: 16 }}>
-          {saveError && <IonText color="danger"><p>{saveError}</p></IonText>}
-          <IonItem lines="full">
-            <IonInput label="Company *" labelPlacement="stacked" value={form.company}
-              onIonInput={e => setField('company', e.detail.value ?? '')} />
-          </IonItem>
-          <IonItem lines="full">
-            <IonInput label="Role *" labelPlacement="stacked" value={form.role}
-              onIonInput={e => setField('role', e.detail.value ?? '')} />
-          </IonItem>
-          <IonItem lines="full">
-            <IonInput label="Location" labelPlacement="stacked" value={form.location}
-              onIonInput={e => setField('location', e.detail.value ?? '')} />
-          </IonItem>
-          <IonItem lines="full">
-            <IonInput label="Source" labelPlacement="stacked" value={form.source} placeholder="LinkedIn, referral…"
-              onIonInput={e => setField('source', e.detail.value ?? '')} />
-          </IonItem>
-          <IonItem lines="full">
-            <IonInput label="Job URL" labelPlacement="stacked" value={form.job_url}
-              onIonInput={e => setField('job_url', e.detail.value ?? '')} />
-          </IonItem>
-          <IonItem lines="full">
-            <IonSelect label="Status" labelPlacement="stacked" interface="popover" value={form.status}
-              onIonChange={e => setField('status', e.detail.value)}>
-              {APP_STATUS.map(s => <IonSelectOption key={s} value={s}>{s}</IonSelectOption>)}
-            </IonSelect>
-          </IonItem>
-          <IonItem lines="full">
-            <IonInput label="Salary" labelPlacement="stacked" value={form.salary}
-              onIonInput={e => setField('salary', e.detail.value ?? '')} />
-          </IonItem>
-          <IonItem lines="full">
-            <IonInput label="Contact" labelPlacement="stacked" value={form.contact}
-              onIonInput={e => setField('contact', e.detail.value ?? '')} />
-          </IonItem>
-          <IonItem lines="full">
-            <IonLabel position="stacked" style={{ fontSize: 12 }}>Applied date</IonLabel>
-            <input type="date" style={{ marginTop: 8, marginBottom: 8, background: 'transparent', color: 'var(--ion-text-color)', border: 'none' }}
-              value={form.applied_at ?? ''} onChange={e => setField('applied_at', e.target.value)} />
-          </IonItem>
-          <IonItem lines="full">
-            <IonTextarea label="Job description" labelPlacement="stacked" autoGrow value={form.job_description}
-              onIonInput={e => setField('job_description', e.detail.value ?? '')} />
-          </IonItem>
-          <IonItem lines="full">
-            <IonTextarea label="Notes" labelPlacement="stacked" autoGrow value={form.notes}
-              onIonInput={e => setField('notes', e.detail.value ?? '')} />
-          </IonItem>
-          <IonButton expand="block" style={{ marginTop: 16 }} disabled={saving} onClick={handleSave}>
-            {saving ? <IonSpinner name="dots" /> : editingId ? 'Save Changes' : 'Create Application'}
-          </IonButton>
-        </div>
+      {/* ═══════════════════════════════════════════════════════════
+           Modals                                                    */}
+      <ModalShell isOpen={editorOpen} onDismiss={() => setEditorOpen(false)} title={editingId ? 'Edit Application' : 'New Application'}>
+        {editorError && <IonItem lines="none"><IonText color="danger">{editorError}</IonText></IonItem>}
+        {appForm && (
+          <FormRenderer
+            key={editingId ?? 'new'}
+            component={appForm}
+            defaultValues={editorDefaults}
+            onSubmit={handleSaveApplication}
+            submitLabel={editingId ? 'Save Changes' : 'Create Application'}
+          />
+        )}
       </ModalShell>
 
-      {/* ── Upload artifact modal ── */}
-      <ModalShell isOpen={uploadOpen} onDismiss={() => setUploadOpen(false)} title="Attach Artifact" dismissLabel="Close">
-        <div style={{ padding: 16 }}>
-          {uploadError && <IonText color="danger"><p>{uploadError}</p></IonText>}
-          <IonItem lines="full">
-            <IonSelect label="Kind" labelPlacement="stacked" interface="popover" value={uploadKind}
-              onIonChange={e => setUploadKind(e.detail.value)}>
-              {APP_FILE_KINDS.map(k => <IonSelectOption key={k.value} value={k.value}>{k.label}</IonSelectOption>)}
-            </IonSelect>
-          </IonItem>
-          <IonItem lines="full">
-            <IonLabel position="stacked">File</IonLabel>
-            <input type="file" style={{ marginTop: 8, marginBottom: 8 }}
-              onChange={e => setUploadFile(e.target.files?.[0] ?? null)} />
-          </IonItem>
-          <IonButton expand="block" style={{ marginTop: 16 }} disabled={!uploadFile || uploading} onClick={handleUpload}>
-            {uploading ? <IonSpinner name="dots" /> : 'Upload'}
-          </IonButton>
-        </div>
+      <ModalShell isOpen={eventOpen} onDismiss={() => setEventOpen(false)} title="Log Event">
+        {eventForm && (
+          <FormRenderer
+            component={eventForm}
+            defaultValues={{ event_type: 'response' }}
+            onSubmit={handleAddEvent}
+            submitLabel="Log Event"
+          />
+        )}
       </ModalShell>
 
-      {/* ── Log event modal ── */}
-      <ModalShell isOpen={eventOpen} onDismiss={() => setEventOpen(false)} title="Log Event" dismissLabel="Close">
-        <div style={{ padding: 16 }}>
-          <IonItem lines="full">
-            <IonSelect label="Type" labelPlacement="stacked" interface="popover" value={eventType}
-              onIonChange={e => setEventType(e.detail.value)}>
-              {EVENT_TYPES.map(t => <IonSelectOption key={t.value} value={t.value}>{t.label}</IonSelectOption>)}
-            </IonSelect>
-          </IonItem>
-          <IonItem lines="full">
-            <IonTextarea label="Detail" labelPlacement="stacked" autoGrow value={eventDetail}
-              onIonInput={e => setEventDetail(e.detail.value ?? '')} />
-          </IonItem>
-          <IonButton expand="block" style={{ marginTop: 16 }} disabled={savingEvent} onClick={handleAddEvent}>
-            {savingEvent ? <IonSpinner name="dots" /> : 'Log Event'}
-          </IonButton>
-        </div>
+      <ModalShell isOpen={attachOpen} onDismiss={() => setAttachOpen(false)} title="Attach a file">
+        <IonItem lines="full">
+          <IonSelect label="Attach as" labelPlacement="stacked" interface="popover" value={attachKind}
+            onIonChange={e => setAttachKind(e.detail.value)}>
+            {APP_FILE_KINDS.map(k => <IonSelectOption key={k.value} value={k.value}>{k.label}</IonSelectOption>)}
+          </IonSelect>
+        </IonItem>
+        <ResourcePanel<FileRecord>
+          fetcher={filesFetcher}
+          refreshToken={attachOpen ? 1 : 0}
+          title="Your files"
+          selectedId={attachPick}
+          getLabel={f => f.filename}
+          getSubLabel={fileMeta}
+          getIcon={() => documentTextOutline}
+          onSelect={f => setAttachPick(f.id)}
+        />
+        <IonButton expand="block" disabled={!attachPick || attaching} onClick={handleAttach}>
+          {attaching ? 'Attaching…' : 'Attach to application'}
+        </IonButton>
+      </ModalShell>
+
+      <ModalShell isOpen={deleteAppOpen} onDismiss={() => setDeleteAppOpen(false)} title="Delete application">
+        <IonItem lines="none">
+          <IonLabel style={{ whiteSpace: 'normal' }}>
+            Delete the application to <strong>{selected?.company}</strong> ({selected?.role})? Its timeline and file links are removed. This cannot be undone.
+          </IonLabel>
+        </IonItem>
+        <IonButton expand="block" color="danger" disabled={deletingApp} onClick={confirmDeleteApp}>
+          {deletingApp ? 'Deleting…' : 'Delete permanently'}
+        </IonButton>
       </ModalShell>
     </SplitPageLayout>
   );
