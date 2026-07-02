@@ -1,18 +1,14 @@
 ---
-name: page-template-rules
-description: The four non-negotiable SplitPageLayout left-column rules — leftTabs, fetcher, actions=buttons only, hidden prop
-metadata:
-  node_type: memory
-  type: feedback
+paths:
+  - "pwa/src/pages/**"
 ---
 
 # SplitPageLayout left-column template rules
 
-The left column of every page has four non-negotiable rules. In the original project these were corrected multiple times across pages; apply them from the start on every new manuHunter page. See [[copy-from-original-project]] and [[page-conventions]].
+The left column of every page has four non-negotiable rules. In the reference project these were corrected multiple times across pages; apply them from the start on every new manuHunter page. See `code-reuse.md` and `page-structure.md`.
 
 **Why:** the template is mandated. Deviating causes inconsistent UI and repeated correction work.
 
-**How to apply:**
 ```tsx
 <SplitPageLayout
   leftTabs={[{                 // always leftTabs, never left={<TabPanel .../>}

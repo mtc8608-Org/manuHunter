@@ -1,26 +1,24 @@
 ---
-name: code-reuse-rule
-description: Non-negotiable — always reuse the existing shell/form components; only create a new component for genuinely new behaviour that no prop can express
-metadata:
-  node_type: memory
-  type: feedback
+paths:
+  - "pwa/src/**"
 ---
 
 # Component reuse rule (non-negotiable)
 
-Always reuse existing components. Only create a new component if you need genuinely new behaviour that cannot be expressed through a new prop. Inherited from the original project (see [[copy-from-original-project]]); manuHunter uses the same `pwa/src/components/` shell library.
+Always reuse existing components. Only create a new component if you need genuinely new behaviour that cannot be expressed through a new prop. manuHunter uses the shared `pwa/src/components/` shell library inherited from the reference project (see CLAUDE.md "Reference project").
 
 **Why:** duplicating patterns inline (hand-rolled modals, bespoke list panels, custom edit forms) creates maintenance debt and diverges from the standard the app is built on. This applies even for "quick" additions or one-off pages.
 
-**How to apply.** Before writing any new JSX:
+Before writing any new JSX:
 1. Check the shell library first. If something covers the case, use it.
 2. If it almost fits, add a prop to the existing component.
 3. Only if the behaviour is fundamentally different do you create a new file.
 
-Decision guide (the single right choice for each need):
+## Decision guide (the single right choice for each need)
+
 - Split-layout page → `SplitPageLayout` (wraps IonPage, AppHeader, AreaShell, Grid). Never hand-roll that boilerplate.
 - Left-sidebar area nav (`SplitPageLayout` `navItems`) → one shared `AREA_NAV.<AREA>` list per area (like `AREA_NAV.BACKOFFICE`). Every page in the area passes the *same* list in the *same* order. Adding a page to an existing area reuses that area's list — never define a second per-page variant with the items reordered, or the sidebar reshuffles as you navigate between the area's pages (this is what a duplicated `AREA_NAV.JOBS` + `AREA_NAV.CV` caused).
-- Both columns of `SplitPageLayout` are *always* a `TabPanel` — the left via `leftTabs` (see [[page-template-rules]]), the right by passing `right={<TabPanel tabs={[...]} />}`. This is unconditional: a column with a single view is still a one-tab `TabPanel` (`<TabPanel tabs={[{ label: 'Detail'|'Preview', content }]} />`), never a bare fragment, `<IonCard>`, or raw node. `TabPanel` always renders the segment bar, even for one tab. (GeneratedCvs' right column was first written as a bare fragment — inconsistent with every other page.)
+- Both columns of `SplitPageLayout` are *always* a `TabPanel` — the left via `leftTabs` (see `page-template.md`), the right by passing `right={<TabPanel tabs={[...]} />}`. This is unconditional: a column with a single view is still a one-tab `TabPanel` (`<TabPanel tabs={[{ label: 'Detail'|'Preview', content }]} />`), never a bare fragment, `<IonCard>`, or raw node. `TabPanel` always renders the segment bar, even for one tab. (GeneratedCvs' right column was first written as a bare fragment — inconsistent with every other page.)
 - "Create item" button on a list → `onAdd` on `ResourcePanel`, always, without exception. Never via `rightHeader`.
 - Page-level controls above the right column → `rightHeader` (bulk ops, mode toggles, save state), never for creating list items.
 - Tab-specific buttons → `actions` on the relevant `TabDef`.
@@ -34,4 +32,4 @@ Decision guide (the single right choice for each need):
 - Tree add/edit/delete/reorder → `TreeEditor`. Never hand-roll add/edit/delete modal logic in a page.
 - Guard a route → `PrivateRoute` or `AdminRoute`.
 
-See [[page-conventions]] and [[page-template-rules]] for how these are laid out inside a page file.
+See `page-structure.md` and `page-template.md` for how these are laid out inside a page file.

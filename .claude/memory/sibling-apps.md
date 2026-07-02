@@ -13,10 +13,10 @@ manuHunter shares the ManuSpine framework with several sibling apps (see [[manul
 ## manuSpine (the framework, upstream parent)
 - Repo: `/home/cabsman/Documents/projects/manuSpine`, `git@github.com:mtc8608/manuSpine.git`.
 - Memory: `manuSpine/.claude/memory/` and `/home/cabsman/.claude/projects/-home-cabsman-Documents-projects-manuSpine/memory/`.
-- Holds: the ManuLab context and the "copy from original project" rule, both already captured here as [[manulab-context]] and [[copy-from-original-project]].
+- Holds: the ManuLab context and the "copy from original project" rule, captured here as [[manulab-context]] and CLAUDE.md "Reference project".
 
 ## manuBeat (cardio / bedside telemetry app)
-- Repo: `/home/cabsman/Documents/projects/manuBeat`. Also forked from manuSpine via the same `upstream` merge workflow (see [[framework-upstream]]).
+- Repo: `/home/cabsman/Documents/projects/manuBeat`. Also forked from manuSpine via the same `upstream` merge workflow (see CLAUDE.md "Framework upstream").
 - Memory: `manuBeat/.claude/memory/`. Rich, and mostly domain-specific to manuBeat (not needed for job-search work), but useful as a worked example of extending the framework. Key files there:
   - `project_cardio_port` : porting `CardioRespiratoryModelV2` (branch `V2.3`) into manuBeat as the cardio domain (Python compute).
   - `project_bedside_domain` : the `bedside` admin domain, where a patient IS a survey answer (survey `f000`), augmented via `bedside_nodes`/`beds`/`bed_assignments`/`patient_files`. Good example of adding a domain on top of the survey + component-tree framework and reusing shell components (SplitPageLayout, ResourcePanel, ModalShell, FormRenderer, DataTable, EmptyState).

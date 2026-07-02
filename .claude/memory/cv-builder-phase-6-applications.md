@@ -1,41 +1,35 @@
 ---
 name: cv-builder-phase-6-applications
-description: CV builder phase 6, attach a compiled CV PDF to a job application and add generate or compile entry points from the Applications page
+description: CV builder phase 6 (job applications) — SHIPPED: Applications remade to conventions, Artifacts area, attach CV/files, owner-scoped files. Remaining: download scoping, generate-from-application, table view.
 metadata:
   node_type: memory
   type: project
 ---
 
-# Phase 6: attach to applications
+# Phase 6: job applications — shipped state
 
-Parent plan: [[cv-builder-plan]]. Prereqs: [[cv-builder-phase-3-latex-compile]] (compile and save PDF), ideally [[cv-builder-phase-4-frontend-manual]].
+Parent plan: [[cv-builder-plan]]. The Job Applications domain has been fully remade (the earlier version was legacy code that broke the UI conventions, now in `.claude/rules/`). This file records what shipped; the code is the source of truth.
 
-Goal: close the loop. A compiled CV PDF can be attached to a job application, and the Applications page can launch CV build or compile for a specific role.
+## Shipped (branch `cv-builder`, 2026-07)
 
-## Backend
+**Area: "Job Applications"** — `AREA_NAV.APPLICATIONS = [Applications, Artifacts]` (title "Job Applications"), two nav entries, same shape as CV Builder's CVs/Generated CVs/Templates.
 
-The join table already supports this: `application_files(application_id, file_id, kind)` at `init-scripts/02-init-jobs.sql:54-62`, and the upload plus link flow at `nodejs/routes/jobs/applications.js:11-56`.
+- **`pages/jobs/Applications.tsx`** (rewritten to conventions): left `ResourcePanel` of applications (search + status filter); right single `Detail` tab — Overview (read card + quick status select + Edit/Delete), then **Job Description**, then **Attached** files (`ResourcePanel`: attach / unlink / download), then **Timeline** (`ResourcePanel`: log). All editors are `FormRenderer` over seeded forms (`form_application`, `form_application_event`); all confirms are `ModalShell`; no hand-rolled forms/lists/`window.confirm` left.
+- **`pages/jobs/Artifacts.tsx`** (its own area, cloned from `GeneratedCvs.tsx`): the user's files — list left, `PdfViewer` preview + download right, upload + delete. Backed by owner-scoped `getFiles`.
+- **Attach flow**: `ModalShell` + `ResourcePanel` picker of the user's files + a kind select → `linkApplicationFile` (GraphQL). Generated CVs are `files` rows (owner = user), so they appear in the picker and attach with no re-upload — this is the "attach a CV to an application" loop.
 
-- Add `POST /api/cv/:id/attach/:applicationId`: check the requester owns both the cvDocument (`cv_components.owner_id`) and the application (existing application ownership check at `applications.js:18-23`), compile the cvDocument (reuse the phase 3 compile plus MinIO save, which also writes a `cv_artifacts` row), then insert into `application_files` with `kind='cv'` (or a new `generated-cv`), reusing the ON CONFLICT link pattern from `applications.js:44-49`. This produces the PDF, records the artifact, and attaches it in one call.
-- Alternatively add a GraphQL mutation `attachCvToApplication(cv_id, application_id)` next to the applications mutations in `nodejs/schema/resolvers/jobs/applications.js`. Either is fine; the REST route matches the existing file upload style.
+**Backend**
+- `nodejs/routes/framework/files.js`: `GET /files` now owner-scoped (non-admin sees only own); `DELETE /files/:id` allowed for the uploader (was admin-only), cascading `application_files` + `cv_artifacts`.
+- `linkApplicationFile` mutation already existed in `resolvers/jobs/applications.js`; `Api.ts` gained `linkApplicationFile` + `fetchFileBlob`.
+- Seeded `form_application` + `form_application_event` (global `components`) in `init-scripts/02-init-jobs.sql` (UUID prefix `aaaaf0…`; names in `constants.ts` `APP_FORM`). Needs a DB reset to appear.
+- `application_files` join table (`02-init-jobs.sql`) is unchanged; attach/upload/unlink all go through it.
 
-## Frontend
+## Known gap (deliberate)
 
-- In `pwa/src/pages/jobs/Applications.tsx` (artifacts section at lines 303-332, upload modal at 437-456), add an "Attach CV" button that opens a `ModalShell` + `ResourcePanel` (fetcher = the user's cvDocuments, no onAdd/onDelete) + confirm to pick one, per [[code-reuse-rule]] (never `IonSelect` or a hand-rolled list). On confirm, call the attach endpoint, then refresh the artifacts list (which already renders any `kind`).
-- Optional: a "Tailor CV for this role" button that deep links to the CV AI tab ([[cv-builder-phase-5-claude-assisted]]) pre filled with this application's `job_description`, then attaches the result back.
-- If using a distinct kind, add `{ value: 'generated-cv', label: 'Generated CV (PDF)' }` to `APP_FILE_KINDS` in `constants.ts:165`. Otherwise reuse `cv`.
+**Generic file download is NOT owner-scoped.** `GET /files/:id/download` stays unauthenticated because content images load through it via `<img src>` (ImagePicker → `data.src`), and browsers can't attach the auth header. Scoping it would break every content image. Proper fix = migrate content images to the existing unauthenticated `/files/:key/download-by-key` path, then lock `/download` to auth+ownership (uploader/admin, or a file behind an app/`cv_artifact` the requester owns). Separate content-domain change; not done.
 
-## Api.ts
+## Remaining / ideas
 
-- `attachCvToApplication(cvId, applicationId)` calling the route above.
-
-## Acceptance criteria
-
-- From an application, the user selects a cvDocument, and a compiled PDF appears in that application's artifacts, downloadable via the existing `GET /api/files/:id/download` flow.
-- The attached file is linked with the correct `kind` and survives a page refresh.
-
-## Notes
-
-- No schema migration needed: `application_files.kind` is a free text column.
-- This reuses the whole existing files and MinIO layer; nothing new in storage.
-- Unlink vs delete: unlinking a file from an application (existing `unlinkApplicationFile`) removes only the `application_files` row; the PDF and its `files` row survive and stay attached to any other application. Deleting the file itself goes through `DELETE /api/files/:id` (see [[cv-builder-phase-3-latex-compile]]), which removes the MinIO object, deletes the `files` row, and cascades every `application_files` link. Both actions warn in the UI, and the two buttons must be visually distinct so a user does not delete a shared PDF when they meant to detach it from one role.
+- **Owner-scope the download route** (above) before treating personal files as private.
+- **Generate/compile a tailored CV from an application** — the original phase-6 "Tailor CV for this role" entry point (deep-link to the AI route, ties to [[cv-builder-phase-5-claude-assisted]]) — not built.
+- **Applications table view** (like the survey answers `DataTable`): a right-column `Table` tab over `getApplications` with key/value filters, column toggles, CSV export, row Edit → the existing `form_application` modal, row delete → `deleteApplication`. Editing is row-level via the modal (DataTable has `onEdit(row)`/`onDelete(id)`; no inline cell editing — that would be a bespoke component and is out of scope). Planned, not built.

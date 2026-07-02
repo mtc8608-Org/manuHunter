@@ -1,14 +1,11 @@
 ---
-name: page-conventions
-description: How every page file is structured â€” section order, figlet ASCII banners, 2-line JSX region comments, and the 3-line file header
-metadata:
-  node_type: memory
-  type: project
+paths:
+  - "pwa/src/pages/**"
 ---
 
 # Page code conventions
 
-Every page file follows a fixed structure, inherited from the original project (see [[copy-from-original-project]]). Apply from the start on new pages; do not deviate.
+Every page file follows a fixed structure, inherited from the reference project (see CLAUDE.md "Reference project"). Apply from the start on new pages; do not deviate.
 
 ## Section order inside a page file
 ```
@@ -50,4 +47,4 @@ Every named group of JSX (a component, a panel, a modal block) gets a 2-line `â•
 // Auth requirement (Authenticated / Admin-only / Public).
 ```
 
-Naming conventions: React components PascalCase; functions/variables camelCase; constants UPPER_SNAKE_CASE (in `constants.ts`); GraphQL queries/mutations camelCase; DB tables/columns snake_case. See [[page-template-rules]] for the SplitPageLayout left-column rules.
+Naming conventions: React components PascalCase; functions/variables camelCase; constants UPPER_SNAKE_CASE (in `constants.ts`); GraphQL queries/mutations camelCase; DB tables/columns snake_case. See `page-template.md` for the SplitPageLayout left-column rules.

@@ -26,4 +26,4 @@ manuHunter is a sibling of these (a job-search app rather than an organ), built 
 ## Bigger vision
 ManuSpine being generic and public is a prerequisite for splitting cabeleira.net into separate repos and for a Cardano Catalyst Fund16 grant. The long-term ManuLab vision is a federated clinical-research platform with patient-sovereign health data (Cardano: Aiken contracts, Identus DIDs, Hydra micropayments, Midnight ZK proofs). That vision is manuBeat/ManuLab territory, not manuHunter's, but it explains why the framework is kept generic.
 
-**Why this matters for manuHunter:** framework-level infrastructure is shared and reused across all these apps, so framework fixes flow upstream and are not reinvented per app. See [[framework-upstream]] and [[copy-from-original-project]].
+**Why this matters for manuHunter:** framework-level infrastructure is shared and reused across all these apps, so framework fixes flow upstream and are not reinvented per app. See CLAUDE.md "Framework upstream" and "Reference project".
