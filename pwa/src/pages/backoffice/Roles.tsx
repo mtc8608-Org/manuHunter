@@ -1,11 +1,13 @@
-// Page: Users — user management (backoffice).
-// Reads/writes: users table via REST /users (list / create / patch).
-// Admin-only. Self-service account settings live on the Account page.
+// Page: Roles — role catalogue management (backoffice).
+// Reads/writes: roles table via GraphQL (roleList / createRole / updateRole / deleteRole).
+// Admin-only. A role aliases a name onto a permissions tier ('registered' |
+// 'user' | 'admin'); the tier ladder itself is code (nodejs/permissions.js).
 
 import React, { useEffect, useState } from 'react';
 import {
-  IonItem, IonLabel, IonText,
+  IonButton, IonItem, IonLabel, IonText,
 } from '@ionic/react';
+import { keyOutline } from 'ionicons/icons';
 import { ComponentResults } from '../../interfaces/types';
 import ApiService, { Role } from '../../services/Api';
 import SplitPageLayout from '../../components/shell/SplitPageLayout';
@@ -14,7 +16,7 @@ import EmptyState from '../../components/shell/EmptyState';
 import ModalShell from '../../components/shell/ModalShell';
 import ResourcePanel from '../../components/shell/ResourcePanel';
 import FormRenderer from '../../components/forms/FormRenderer';
-import { AREA_NAV, PANEL_CONFIG, USER_FORM } from '../../constants';
+import { AREA_NAV, PANEL_CONFIG, ROLE_FORM } from '../../constants';
 
 
 /*
@@ -26,21 +28,14 @@ import { AREA_NAV, PANEL_CONFIG, USER_FORM } from '../../constants';
                                                                        */
 
 
-interface User {
-  id: string;
-  email: string;
-  role: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-const formatDate = (val: string) => {
-  const d = new Date(val);
-  return isNaN(d.getTime()) ? val : d.toLocaleDateString();
+const TIER_COLOR: Record<string, string> = {
+  admin:      'warning',
+  user:       'primary',
+  registered: 'medium',
 };
 
 
-const Users: React.FC = () => {
+const Roles: React.FC = () => {
 
 
 /*
@@ -53,21 +48,20 @@ const Users: React.FC = () => {
 
 
   const [listVersion, setListVersion] = useState(0);
-  const [search, setSearch]           = useState('');
-  const [roleFilter, setRoleFilter]   = useState('');
-  const [selected, setSelected]       = useState<User | null>(null);
+  const [selected, setSelected]       = useState<Role | null>(null);
 
   // Seeded FormRenderer forms
   const [editorForm, setEditorForm] = useState<ComponentResults | null>(null);
   const [createForm, setCreateForm] = useState<ComponentResults | null>(null);
 
-  // Live role catalogue — feeds the role selects (falls back to the seeded
-  // options while empty, so custom roles show up without a seed change).
-  const [roles, setRoles] = useState<Role[]>([]);
-
-  // New-user modal
+  // New-role modal
   const [createOpen, setCreateOpen]   = useState(false);
   const [createError, setCreateError] = useState('');
+
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<Role | null>(null);
+  const [deleteError, setDeleteError]   = useState('');
+  const [deleting, setDeleting]         = useState(false);
 
   const [editorMsg, setEditorMsg]     = useState('');
   const [editorError, setEditorError] = useState('');
@@ -83,16 +77,11 @@ const Users: React.FC = () => {
 
 
   useEffect(() => {
-    ApiService.getComponentByName(USER_FORM.EDITOR).then(f => setEditorForm((f ?? null) as ComponentResults | null));
-    ApiService.getComponentByName(USER_FORM.CREATE).then(f => setCreateForm((f ?? null) as ComponentResults | null));
-    ApiService.getRoles().then(setRoles);
+    ApiService.getComponentByName(ROLE_FORM.EDITOR).then(f => setEditorForm((f ?? null) as ComponentResults | null));
+    ApiService.getComponentByName(ROLE_FORM.CREATE).then(f => setCreateForm((f ?? null) as ComponentResults | null));
   }, []);
 
-  const usersFetcher = () => ApiService.getUsers();
-
-  const roleOptions = roles.length
-    ? { role: roles.map(r => ({ value: r.name, label: r.name })) }
-    : undefined;
+  const rolesFetcher = () => ApiService.getRoles();
 
 
 /*
@@ -104,35 +93,53 @@ const Users: React.FC = () => {
                                                                                    */
 
 
-  const selectUser = (u: User) => { setSelected(u); setEditorMsg(''); setEditorError(''); };
+  const selectRole = (r: Role) => { setSelected(r); setEditorMsg(''); setEditorError(''); };
 
-  // Detail editor (FormRenderer over form_user_editor) — the two PATCHable fields.
-  const handleSaveUser = async (values: any) => {
+  // Detail editor (FormRenderer over form_role_editor). Name is immutable;
+  // system roles additionally have a fixed tier (also enforced server-side).
+  const handleSaveRole = async (values: any) => {
     if (!selected) return;
     setEditorMsg('');
     setEditorError('');
     try {
-      const updated = await ApiService.patchUser(selected.id, { role: values.role, is_active: !!values.is_active });
-      setSelected(prev => (prev ? { ...prev, ...updated } : prev));
+      const updated = await ApiService.updateRole(selected.id, { tier: values.tier, description: values.description });
+      setSelected(updated);
       setListVersion(v => v + 1);
-      setEditorMsg('User updated.');
+      setEditorMsg('Role updated. Tier changes reach each user on their next login.');
     } catch (e: any) {
       setEditorError(e?.message ?? 'Update failed');
     }
   };
 
-  // New user (FormRenderer over form_user_create).
+  // New role (FormRenderer over form_role_create).
   const openCreate = () => { setCreateError(''); setCreateOpen(true); };
-  const handleCreateUser = async (values: any) => {
-    if (!values.email || !values.password) { setCreateError('Email and password are required.'); return; }
+  const handleCreateRole = async (values: any) => {
+    if (!values.name || !values.tier) { setCreateError('Name and tier are required.'); return; }
     setCreateError('');
     try {
-      const created = await ApiService.createUser(values.email, values.password, values.role || 'user');
+      const created = await ApiService.createRole(values.name, values.tier, values.description);
       setCreateOpen(false);
       setListVersion(v => v + 1);
       setSelected(created);
     } catch (e: any) {
-      setCreateError(e?.message ?? 'Failed to create user');
+      setCreateError(e?.message ?? 'Failed to create role');
+    }
+  };
+
+  const openDelete = (r: Role) => { setDeleteError(''); setDeleteTarget(r); };
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await ApiService.deleteRole(deleteTarget.id);
+      if (selected?.id === deleteTarget.id) setSelected(null);
+      setDeleteTarget(null);
+      setListVersion(v => v + 1);
+    } catch (e: any) {
+      setDeleteError(e?.message ?? 'Failed to delete role');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -149,32 +156,28 @@ const Users: React.FC = () => {
   return (
     <SplitPageLayout
       navItems={AREA_NAV.BACKOFFICE}
-      title="Users"
+      title="Roles"
       leftTabs={[
         {
-          label: 'Users',
+          label: 'Roles',
           content: (
             /* ═══════════════════════════════════════════════════════════
                  Component list                                            */
-            <ResourcePanel<User>
-              fetcher={usersFetcher}
+            <ResourcePanel<Role>
+              fetcher={rolesFetcher}
               refreshToken={listVersion}
-              config={PANEL_CONFIG.USERS}
+              config={PANEL_CONFIG.ROLES}
               selectedId={selected?.id}
-              getLabel={u => u.email}
-              getSubLabel={u => `Joined ${formatDate(u.created_at)}`}
-              getBadge={u => [
-                { label: u.is_active ? 'active' : 'inactive', color: u.is_active ? 'success' : 'medium' },
-                { label: u.role, color: u.role === 'admin' ? 'warning' : 'primary' },
+              getLabel={r => r.name}
+              getSubLabel={r => `${r.users} user(s)`}
+              getIcon={() => keyOutline}
+              getBadge={r => [
+                { label: r.tier, color: TIER_COLOR[r.tier] ?? 'primary' },
+                ...(r.is_system ? [{ label: 'system', color: 'medium' }] : []),
               ]}
-              onSelect={selectUser}
+              onSelect={selectRole}
               onAdd={openCreate}
-              filterFn={(u, text, type) => {
-                const t = text.toLowerCase();
-                return (!t || u.email.toLowerCase().includes(t))
-                    && (!type || u.role === type);
-              }}
-              filter={{ text: search, onTextChange: setSearch, typeValue: roleFilter, onTypeChange: setRoleFilter }}
+              onDelete={openDelete}
             />
           ),
         },
@@ -184,15 +187,15 @@ const Users: React.FC = () => {
           {
             label: 'Detail',
             content: !selected ? (
-              <EmptyState message="Select a user to edit" />
+              <EmptyState message="Select a role to edit" />
             ) : (
               <>
                 {/* ═══════════════════════════════════════════════════════════
                      Edit form                                                 */}
                 <IonItem lines="full">
                   <IonLabel>
-                    <p style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>Email</p>
-                    <p>{selected.email}</p>
+                    <p style={{ fontSize: 12, color: 'var(--ion-color-medium)' }}>Name</p>
+                    <p>{selected.name}{selected.is_system ? ' (system role — tier is fixed)' : ''}</p>
                   </IonLabel>
                 </IonItem>
                 {editorMsg   && <IonItem lines="none"><IonText color="success" style={{ fontSize: 13 }}>{editorMsg}</IonText></IonItem>}
@@ -201,9 +204,12 @@ const Users: React.FC = () => {
                   <FormRenderer
                     key={selected.id}
                     component={editorForm}
-                    defaultValues={{ role: selected.role, is_active: selected.is_active }}
-                    injectedOptions={roleOptions}
-                    onSubmit={handleSaveUser}
+                    defaultValues={{ tier: selected.tier, description: selected.description ?? '' }}
+                    // System roles: pin the tier select to its current value.
+                    injectedOptions={selected.is_system
+                      ? { tier: [{ value: selected.tier, label: selected.tier }] }
+                      : undefined}
+                    onSubmit={handleSaveRole}
                     submitLabel="Save Changes"
                   />
                 )}
@@ -215,20 +221,42 @@ const Users: React.FC = () => {
     >
       {/* ═══════════════════════════════════════════════════════════
            Modals                                                    */}
-      <ModalShell isOpen={createOpen} onDismiss={() => setCreateOpen(false)} title="New User">
+      <ModalShell isOpen={createOpen} onDismiss={() => setCreateOpen(false)} title="New Role">
         {createError && <IonItem lines="none"><IonText color="danger">{createError}</IonText></IonItem>}
         {createForm && (
           <FormRenderer
             component={createForm}
-            defaultValues={{ role: 'user' }}
-            injectedOptions={roleOptions}
-            onSubmit={handleCreateUser}
-            submitLabel="Create User"
+            defaultValues={{ tier: 'registered' }}
+            onSubmit={handleCreateRole}
+            submitLabel="Create Role"
           />
+        )}
+      </ModalShell>
+
+      <ModalShell isOpen={!!deleteTarget} onDismiss={() => setDeleteTarget(null)} title="Delete role">
+        {deleteTarget?.is_system ? (
+          <IonItem lines="none">
+            <IonLabel style={{ whiteSpace: 'normal' }}>
+              <strong>{deleteTarget.name}</strong> is a system role and cannot be deleted.
+            </IonLabel>
+          </IonItem>
+        ) : (
+          <>
+            <IonItem lines="none">
+              <IonLabel style={{ whiteSpace: 'normal' }}>
+                This permanently deletes the role <strong>{deleteTarget?.name}</strong>. Roles still
+                assigned to users cannot be deleted — reassign those users first.
+              </IonLabel>
+            </IonItem>
+            {deleteError && <IonItem lines="none"><IonText color="danger" style={{ fontSize: 13 }}>{deleteError}</IonText></IonItem>}
+            <IonButton expand="block" color="danger" disabled={deleting} onClick={confirmDelete}>
+              {deleting ? 'Deleting…' : 'Delete role'}
+            </IonButton>
+          </>
         )}
       </ModalShell>
     </SplitPageLayout>
   );
 };
 
-export default Users;
+export default Roles;

@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/files', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
   try {
-    const result = req.user.role === 'admin'
+    const result = req.user.tier === 'admin'
       ? await pool.query('SELECT * FROM files ORDER BY created_at DESC')
       : await pool.query('SELECT * FROM files WHERE uploaded_by = $1::uuid ORDER BY created_at DESC', [req.user.id]);
     res.json(result.rows);
@@ -84,7 +84,7 @@ router.delete('/files/:id', async (req, res) => {
     const result = await pool.query('SELECT * FROM files WHERE id = $1::uuid', [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'File not found' });
     const file = result.rows[0];
-    if (req.user.role !== 'admin' && file.uploaded_by !== req.user.id) {
+    if (req.user.tier !== 'admin' && file.uploaded_by !== req.user.id) {
       return res.status(403).json({ error: 'Not authorised for this file' });
     }
     await pool.query('DELETE FROM files WHERE id = $1::uuid', [req.params.id]);

@@ -3,8 +3,12 @@
 // Applied identically to queries AND mutations (schema/index.js):
 //   public     — no token required
 //   registered — any valid JWT required (any role)
-//   user       — role must be 'user' or 'admin'
-//   admin      — role must be 'admin'; EVERYTHING not listed above defaults here
+//   user       — tier must be 'user' or 'admin'
+//   admin      — tier must be 'admin'; EVERYTHING not listed above defaults here
+//
+// Checks compare the caller's *tier*, not the role name: roles live in the
+// `roles` table and each aliases onto one of these three tiers (backoffice
+// Roles page). The tier is resolved at login and carried in the JWT.
 //
 // A query left out of all lists is admin-only, same as a mutation — so a new
 // operation is locked down by default. Opening one to users/public is a
@@ -73,6 +77,7 @@ module.exports = {
   // (Informational — enforcement uses the fallback rule above. Only list real mutations.)
   admin: [
     'surveyStats',
+    'roleList', 'createRole', 'updateRole', 'deleteRole',
     'createComponent', 'updateComponent', 'deleteComponent',
     'createComponentRelation', 'deleteComponentRelation',
     'createSurveyComponent', 'updateSurveyComponent', 'deleteSurveyComponent',

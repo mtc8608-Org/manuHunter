@@ -117,6 +117,22 @@ const UserType = new GraphQLObjectType({
   }),
 });
 
+// A role from the roles catalogue: a name aliased onto a permissions tier
+// ('registered' | 'user' | 'admin'). is_system rows are the three seeded
+// roles the code depends on (name/tier immutable, not deletable).
+const RoleType = new GraphQLObjectType({
+  name: 'Role',
+  fields: () => ({
+    id:          { type: GraphQLID },
+    name:        { type: GraphQLString },
+    tier:        { type: GraphQLString },
+    description: { type: GraphQLString },
+    is_system:   { type: GraphQLBoolean },
+    created_at:  { type: GraphQLString },
+    users:       { type: GraphQLString },   // count of users holding the role (string for GraphQL bigint safety)
+  }),
+});
+
 // ── Jobs domain ─────────────────────────────────────────────────────────────
 
 const ApplicationEventType = new GraphQLObjectType({
@@ -259,4 +275,5 @@ module.exports = {
   ComponentType,
   ComponentInputType,
   UserType,
+  RoleType,
 };

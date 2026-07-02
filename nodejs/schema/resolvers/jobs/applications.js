@@ -30,7 +30,7 @@ const queries = {
       console.log('-> List applications (status filter:', status, ')');
       const clauses = [];
       const params  = [];
-      if (ctx?.user?.role !== 'admin') {
+      if (ctx?.user?.tier !== 'admin') {
         params.push(ctx?.user?.id);
         clauses.push(`user_id = $${params.length}::uuid`);
       }
@@ -54,7 +54,7 @@ const queries = {
       const res = await pool.query(`SELECT ${APP_COLS} FROM applications WHERE id = $1::uuid`, [id]);
       const row = res.rows[0];
       if (!row) throw new Error('Application not found');
-      if (ctx?.user?.role !== 'admin' && row.user_id !== ctx?.user?.id) {
+      if (ctx?.user?.tier !== 'admin' && row.user_id !== ctx?.user?.id) {
         throw new Error('Not authorised for this application');
       }
       return row;
@@ -116,7 +116,7 @@ const mutations = {
       const sets   = fields.map((c, i) => c === 'applied_at' ? `${c} = $${i + 1}::date` : `${c} = $${i + 1}`);
       const params = fields.map(c => rest[c]);
       params.push(id);
-      const scope = ctx?.user?.role === 'admin' ? '' : ` AND user_id = $${params.length + 1}::uuid`;
+      const scope = ctx?.user?.tier === 'admin' ? '' : ` AND user_id = $${params.length + 1}::uuid`;
       if (scope) params.push(ctx?.user?.id);
       const res = await pool.query(
         `UPDATE applications SET ${sets.join(', ')}, updated_at = NOW()
@@ -134,7 +134,7 @@ const mutations = {
       console.log('-> Delete application:', id);
       const params = [id];
       let scope = '';
-      if (ctx?.user?.role !== 'admin') { params.push(ctx?.user?.id); scope = ' AND user_id = $2::uuid'; }
+      if (ctx?.user?.tier !== 'admin') { params.push(ctx?.user?.id); scope = ' AND user_id = $2::uuid'; }
       await pool.query(`DELETE FROM applications WHERE id = $1::uuid${scope}`, params);
       return true;
     },

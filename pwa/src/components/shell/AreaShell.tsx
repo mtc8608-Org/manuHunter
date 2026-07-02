@@ -12,7 +12,7 @@ import {
   documentTextOutline, folderOutline, constructOutline,
   walletOutline, pulseOutline, gitNetworkOutline, statsChartOutline,
   optionsOutline, layersOutline, briefcaseOutline, downloadOutline,
-  peopleOutline,
+  peopleOutline, keyOutline,
   chevronBackOutline, chevronForwardOutline,
 } from 'ionicons/icons';
 import './AreaShell.css';
@@ -33,6 +33,7 @@ const ICON_MAP: Record<string, string> = {
   'briefcase':       briefcaseOutline,
   'download':        downloadOutline,
   'people':          peopleOutline,
+  'key':             keyOutline,
 };
 
 export interface AreaNavItem {

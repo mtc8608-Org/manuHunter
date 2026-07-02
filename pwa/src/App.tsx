@@ -21,6 +21,7 @@ import Content from './pages/backoffice/Content';
 import Files from './pages/backoffice/Files';
 import Configuration from './pages/backoffice/Configuration';
 import Users from './pages/backoffice/Users';
+import Roles from './pages/backoffice/Roles';
 import { ROUTE } from './constants';
 
 /* Core CSS required for Ionic components to work properly */
@@ -73,6 +74,7 @@ const App: React.FC = () => {
                 <AdminRoute path={ROUTE.FILES}         exact={true} component={Files} />
                 <AdminRoute path={ROUTE.CONFIGURATION} exact={true} component={Configuration} />
                 <AdminRoute path={ROUTE.USERS}         exact={true} component={Users} />
+                <AdminRoute path={ROUTE.ROLES}         exact={true} component={Roles} />
 
               </IonRouterOutlet>
             </IonSplitPane>

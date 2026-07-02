@@ -106,6 +106,18 @@ were made here first (during CV builder work); port them to manuSpine when conve
   filter. All framework-generic except which ops go in which tier (app decision) —
   port the mechanism wholesale.
 
+- **Roles catalogue + tier-based enforcement + Roles backoffice page (2026-07-02)** —
+  roles became data aliased onto the fixed three-tier ladder: `roles` table in
+  `01-init-db.sql` (system rows d020–d022, `users.role` FK `ON UPDATE CASCADE`, Roles-page
+  forms d030/d040), `resolvers/framework/roles.js` (`roleList`/`createRole`/`updateRole`/
+  `deleteRole`, system-role + in-use guards) + `RoleType`. Enforcement everywhere compares
+  the JWT's `tier` claim (resolved at login via JOIN, normalised for legacy tokens in
+  `backend.js`) instead of role-name literals — `schema/index.js`, REST admin checks,
+  jobs/cv resolvers, `AuthContext` `isAdmin`/`isUser`. Frontend: `backoffice/Roles.tsx`
+  (+ route/nav/`PANEL_CONFIG.ROLES`/`ROLE_FORM`/`ROLE_TIERS`, `key` icon in AreaShell),
+  Users page role selects fed from `roleList` via `injectedOptions`. Fully framework-generic
+  — port wholesale together with the `.claude/skills/new-role` skill.
+
 - **(Maybe) LaTeX compile service** — the `python/api/domains/latex/` compile endpoint
   (pdflatex, shell-escape disabled, temp dir, timeout) + the Node bridge pattern is
   largely generic ("compile a .tex string to PDF"). Borderline: it exists to serve the

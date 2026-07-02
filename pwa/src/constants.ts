@@ -218,6 +218,16 @@ export const USER_FORM = {
   CREATE: 'form_user_create',   // email / password / role (New modal)
 } as const;
 
+// Framework role-management forms (backoffice Roles page). Source: 01-init-db.sql d030/d040.
+export const ROLE_FORM = {
+  EDITOR: 'form_role_editor',   // tier select + description (Detail column)
+  CREATE: 'form_role_create',   // name / tier / description (New modal)
+} as const;
+
+// The fixed permissions ladder (nodejs/permissions.js). Roles alias onto one
+// of these tiers; the set is code, never edited at runtime.
+export const ROLE_TIERS = ['registered', 'user', 'admin'] as const;
+
 // The shared default template (owner_id NULL). UUID hardcoded from the seed.
 export const CV_DEFAULT_TEMPLATE_ID = 'c51c1e5f-5cc1-4b77-8832-2d10cc97c000';
 
@@ -358,6 +368,11 @@ export const PANEL_CONFIG = {
       type: { enabled: true, options: ['user', 'admin', 'registered'] },
     },
   },
+  ROLES: {
+    title: 'Roles', emptyMessage: 'No roles found.',
+    add: { enabled: true, label: 'New role' },
+    filter: { text: { enabled: false }, type: { enabled: false } },
+  },
 } as const satisfies Record<string, PanelConfig>;
 // #endregion
 ///////////////////////////////////////////////////////////////////////////////
@@ -380,6 +395,7 @@ export const ROUTE = {
   FILES:         '/folder/Files',
   CONTENT:       '/folder/Content',
   USERS:         '/folder/Users',
+  ROLES:         '/folder/Roles',
 } as const;
 
 // #endregion
@@ -409,6 +425,7 @@ export const AREA_NAV = {
     { label: 'Files',         route: '/folder/Files',         icon: 'folder'        },
     { label: 'Configuration', route: '/folder/Configuration', icon: 'construct'     },
     { label: 'Users',         route: '/folder/Users',         icon: 'people'        },
+    { label: 'Roles',         route: '/folder/Roles',         icon: 'key'           },
   ],
 } as const;
 
@@ -417,7 +434,7 @@ export const NAV_SECTIONS = [
   { label: 'Job Applications', routes: ['/folder/Applications', '/folder/Artifacts'],                 link: '/folder/Applications',  icon: 'briefcase'  },
   { label: 'CV Builder',   routes: ['/folder/CVs', '/folder/GeneratedCVs', '/folder/Templates'],      link: '/folder/CVs',           icon: 'document-text' },
   { label: 'Surveys',    routes: ['/folder/Surveys'],                                             link: '/folder/Surveys',       icon: 'clipboard'  },
-  { label: 'Backoffice', routes: ['/folder/Content', '/folder/Files', '/folder/Configuration', '/folder/Users'],   link: '/folder/Content',       icon: 'construct',  adminOnly: true },
+  { label: 'Backoffice', routes: ['/folder/Content', '/folder/Files', '/folder/Configuration', '/folder/Users', '/folder/Roles'],   link: '/folder/Content',       icon: 'construct',  adminOnly: true },
 ] as const;
 // #endregion
 ///////////////////////////////////////////////////////////////////////////////

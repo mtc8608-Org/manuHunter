@@ -365,6 +365,52 @@ const patchUser = async (id: string, updates: { is_active?: boolean; role?: stri
   return res.json();
 };
 
+// ── roles (backoffice Roles page — admin only) ────────────────────────────────
+
+export interface Role {
+  id: string; name: string; tier: string;
+  description: string | null; is_system: boolean;
+  created_at: string; users: string;   // users = count of holders, stringified
+}
+
+const ROLE_FIELDS = 'id name tier description is_system created_at users';
+
+// Server-side guards (system roles, roles in use) produce user-facing
+// messages — surface GraphQL errors instead of swallowing them.
+const throwOnGqlErrors = (result: any) => {
+  if (result?.errors?.length) throw new Error(result.errors[0].message);
+  return result;
+};
+
+const getRoles = async (): Promise<Role[]> => {
+  try {
+    const result = await gql(`query { roleList { ${ROLE_FIELDS} } }`);
+    return result?.data?.roleList ?? [];
+  } catch (e) { console.error('Error fetching roles:', e); return []; }
+};
+
+const createRole = async (name: string, tier: string, description?: string): Promise<Role> => {
+  const result = throwOnGqlErrors(await gql(`
+    mutation CreateRole($name: String!, $tier: String!, $description: String) {
+      createRole(name: $name, tier: $tier, description: $description) { ${ROLE_FIELDS} }
+    }`, { name, tier, description }));
+  return result.data.createRole;
+};
+
+const updateRole = async (id: string, updates: { tier?: string; description?: string }): Promise<Role> => {
+  const result = throwOnGqlErrors(await gql(`
+    mutation UpdateRole($id: ID!, $tier: String, $description: String) {
+      updateRole(id: $id, tier: $tier, description: $description) { ${ROLE_FIELDS} }
+    }`, { id, ...updates }));
+  return result.data.updateRole;
+};
+
+const deleteRole = async (id: string): Promise<boolean> => {
+  const result = throwOnGqlErrors(await gql(`
+    mutation DeleteRole($id: ID!) { deleteRole(id: $id) }`, { id }));
+  return result.data.deleteRole;
+};
+
 // ── files ─────────────────────────────────────────────────────────────────────
 
 const getFiles = async (): Promise<FileRecord[]> => {
@@ -779,6 +825,8 @@ const ApiService = {
   getSurveys, getSurveyAnswers, getSurveyStats, submitAnswer, updateAnswer, deleteAnswer, createSurvey,
   // auth & user management
   changePassword, getUsers, createUser, patchUser,
+  // roles
+  getRoles, createRole, updateRole, deleteRole,
   // account self-service (profile + secrets keychain)
   getUserProfile, upsertUserProfile, getUserSecrets, setUserSecret, clearUserSecret,
   // files

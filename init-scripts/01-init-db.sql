@@ -240,12 +240,33 @@ ON CONFLICT (id) DO NOTHING;
 -- #endregion
 
 
--- #region Users & Auth · user_profile + user_secrets · editor forms d000/d010
+-- #region Users & Auth · roles + user_profile + user_secrets · editor forms d000/d010/d030/d040
+-- Role catalogue. A role maps a name to a permissions *tier* — the fixed
+-- three-rung ladder enforced by nodejs/permissions.js + schema/index.js
+-- ('registered' < 'user' < 'admin'). New roles are aliases into that ladder:
+-- they never grant finer-grained access than their tier. The tier is resolved
+-- at login and embedded in the JWT, so tier/role changes apply on next login.
+-- is_system rows are the three the code relies on: name and tier immutable,
+-- never deletable. Managed in the backoffice Roles page.
+CREATE TABLE roles (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name        TEXT UNIQUE NOT NULL,
+  tier        TEXT NOT NULL DEFAULT 'registered',  -- 'registered' | 'user' | 'admin'
+  description TEXT,
+  is_system   BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO roles (id, name, tier, description, is_system) VALUES
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d020', 'admin',      'admin',      'Full access: backoffice, user management, every operation.', true),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d021', 'user',       'user',       'Full app user: everything a registered account can do, plus the user-tier operations (surveys).', true),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d022', 'registered', 'registered', 'Self-registered account: own profile, applications and CVs only.', true);
+
 CREATE TABLE users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email         TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL DEFAULT 'user',  -- 'admin' | 'user' | 'registered'
+  role          TEXT NOT NULL DEFAULT 'user' REFERENCES roles(name) ON UPDATE CASCADE,
   is_active     BOOLEAN NOT NULL DEFAULT true,
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
@@ -310,6 +331,40 @@ INSERT INTO components_relationships (parent_id, child_id, position) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d013', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d014', 1),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d013', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d015', 2),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97d013', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d016', 3);
+
+-- Role editor form (backoffice Roles page, Detail column). Name is shown
+-- read-only by the page; tier is disabled for system roles page-side (and
+-- rejected server-side).
+INSERT INTO components (id, name, type, data, options) VALUES
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d030', 'form_role_editor',          'form',     '{"text": "Role"}',        '{"label": "form_role_editor"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d031', 'role_edit_tier',            'select',   '{"text": "Tier"}',        '{"label": "tier"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d032', 'role_edit_tier_registered', 'option',   '{"text": "registered"}',  '{"label": "registered"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d033', 'role_edit_tier_user',       'option',   '{"text": "user"}',        '{"label": "user"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d034', 'role_edit_tier_admin',      'option',   '{"text": "admin"}',       '{"label": "admin"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d035', 'role_edit_description',     'textarea', '{"text": "Description"}', '{"label": "description"}');
+INSERT INTO components_relationships (parent_id, child_id, position) VALUES
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d030', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d031', 1),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d030', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d035', 2),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d031', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d032', 1),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d031', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d033', 2),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d031', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d034', 3);
+
+-- Role create form (backoffice Roles page, New modal).
+INSERT INTO components (id, name, type, data, options) VALUES
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d040', 'form_role_create',         'form',     '{"text": "New Role"}',    '{"label": "form_role_create"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d041', 'role_new_name',            'input',    '{"text": "Name"}',        '{"label": "name"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d042', 'role_new_tier',            'select',   '{"text": "Tier"}',        '{"label": "tier"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d043', 'role_new_tier_registered', 'option',   '{"text": "registered"}',  '{"label": "registered"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d044', 'role_new_tier_user',       'option',   '{"text": "user"}',        '{"label": "user"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d045', 'role_new_tier_admin',      'option',   '{"text": "admin"}',       '{"label": "admin"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d046', 'role_new_description',     'textarea', '{"text": "Description"}', '{"label": "description"}');
+INSERT INTO components_relationships (parent_id, child_id, position) VALUES
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d040', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d041', 1),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d040', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d042', 2),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d040', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d046', 3),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d042', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d043', 1),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d042', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d044', 2),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97d042', 'c51c1e5f-5cc1-4b77-8832-2d10cc97d045', 3);
 -- #endregion
 
 

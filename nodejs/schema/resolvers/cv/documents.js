@@ -14,7 +14,7 @@ const {
   deleteCvRelation, relateCvComponents,
 } = require('../../helpers/cv');
 
-const isAdmin = (ctx) => ctx?.user?.role === 'admin';
+const isAdmin = (ctx) => ctx?.user?.tier === 'admin';
 const userId  = (ctx) => ctx?.user?.id ?? null;
 
 // Fetch a node and assert the caller may write to it (owner or admin).

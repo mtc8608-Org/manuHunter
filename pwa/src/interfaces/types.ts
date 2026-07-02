@@ -2,6 +2,7 @@ export interface AuthUser {
   id: string;
   email: string;
   role: string;
+  tier?: string;   // the role's permissions tier from the JWT; equals role on pre-tier tokens
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗

@@ -33,7 +33,7 @@ const loadStoredToken = (): { token: string; user: AuthUser } | null => {
       localStorage.removeItem(TOKEN_KEY);
       return null;
     }
-    return { token: raw, user: { id: payload.id, email: payload.email, role: payload.role } };
+    return { token: raw, user: { id: payload.id, email: payload.email, role: payload.role, tier: payload.tier ?? payload.role } };
   } catch {
     return null;
   }
@@ -107,11 +107,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  // Gate on the role's *tier* (roles-table ladder), so custom roles aliased
+  // onto a tier pass its rung. Pre-tier tokens carry only the role name —
+  // for the three system roles name === tier.
+  const tier = user ? (user.tier ?? user.role) : null;
+
   return (
     <AuthContext.Provider value={{
       user, token,
-      isAdmin: user?.role === 'admin',
-      isUser:  user?.role === 'user' || user?.role === 'admin',
+      isAdmin: tier === 'admin',
+      isUser:  tier === 'user' || tier === 'admin',
       login, register, logout,
     }}>
       {children}

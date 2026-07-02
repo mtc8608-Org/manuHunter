@@ -17,7 +17,7 @@ const { assembleCvLatex } = require('../../schema/helpers/cvAssemble');
 
 const router = express.Router();
 
-const isAdmin = (req) => req.user?.role === 'admin';
+const isAdmin = (req) => req.user?.tier === 'admin';
 
 // Assert the caller owns (or is admin for) a cvDocument, and return its row.
 const loadOwnedDocument = async (id, req) => {

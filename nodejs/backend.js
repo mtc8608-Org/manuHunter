@@ -20,6 +20,10 @@ server.use((req, res, next) => {
   if (auth?.startsWith('Bearer ')) {
     try {
       req.user = jwt.verify(auth.slice(7), process.env.JWT_SECRET);
+      // All auth checks compare req.user.tier (the roles-table tier resolved
+      // at login). Tokens issued before the tier claim existed carry only the
+      // role name — for the three system roles name === tier, so fall back.
+      if (req.user && !req.user.tier) req.user.tier = req.user.role;
     } catch (_) {
       req.user = null;
     }

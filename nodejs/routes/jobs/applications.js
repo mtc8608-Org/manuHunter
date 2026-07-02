@@ -18,7 +18,7 @@ router.post('/applications/:id/files', upload.single('file'), async (req, res) =
   // Guard: application must exist and be visible to this user.
   const appRes = await pool.query('SELECT user_id FROM applications WHERE id = $1::uuid', [applicationId]);
   if (!appRes.rows.length) return res.status(404).json({ error: 'Application not found' });
-  if (req.user.role !== 'admin' && appRes.rows[0].user_id !== req.user.id) {
+  if (req.user.tier !== 'admin' && appRes.rows[0].user_id !== req.user.id) {
     return res.status(403).json({ error: 'Not authorised for this application' });
   }
 
