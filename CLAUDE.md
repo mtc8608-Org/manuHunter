@@ -36,7 +36,7 @@ manuHunter is forked from **manuSpine** (`git@github.com:mtc8608/manuSpine.git`,
 
 ## Source of truth
 
-The upstream framework **manuSpine** (`/home/cabsman/Documents/projects/manuSpine`) is the main source of truth for patterns. Before implementing anything non-trivial, find the closest existing implementation here or in manuSpine and replicate its pattern exactly. Only design something new if it genuinely does not exist in either. The original project at `/home/cabsman/Documents/cabeleira.net/` is retired as an authority — historical background only.
+The upstream framework **manuSpine** (`/home/cabsman/Documents/projects/manuSpine`) is the main source of truth for patterns. Before implementing anything non-trivial, find the closest existing implementation here or in manuSpine and replicate its pattern exactly. Only design something new if it genuinely does not exist in either. The original project (archived at `/home/cabsman/Documents/archive/cabeleira-legacy/`) is retired as an authority — historical background only. `cabeleira.net` now refers to the live domain, not that codebase.
 
 ## Architecture
 
