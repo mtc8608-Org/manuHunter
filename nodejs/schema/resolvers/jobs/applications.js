@@ -21,6 +21,16 @@ const WRITABLE = [
   'status', 'salary', 'contact', 'notes', 'applied_at',
 ];
 
+// Assert the caller owns the application (or is admin). Single error for
+// missing and foreign rows — no existence oracle.
+const assertApplicationOwner = async (application_id, ctx) => {
+  const res = await pool.query('SELECT user_id FROM applications WHERE id = $1::uuid', [application_id]);
+  const row = res.rows[0];
+  if (!row || (ctx?.user?.tier !== 'admin' && row.user_id !== ctx?.user?.id)) {
+    throw new Error('Application not found or not authorised');
+  }
+};
+
 const queries = {
   // Admin sees every application; a regular user sees only their own.
   applications: {
@@ -53,9 +63,9 @@ const queries = {
       console.log('-> Get application:', id);
       const res = await pool.query(`SELECT ${APP_COLS} FROM applications WHERE id = $1::uuid`, [id]);
       const row = res.rows[0];
-      if (!row) throw new Error('Application not found');
-      if (ctx?.user?.tier !== 'admin' && row.user_id !== ctx?.user?.id) {
-        throw new Error('Not authorised for this application');
+      // Single error for missing and foreign rows — no existence oracle.
+      if (!row || (ctx?.user?.tier !== 'admin' && row.user_id !== ctx?.user?.id)) {
+        throw new Error('Application not found or not authorised');
       }
       return row;
     },
@@ -146,8 +156,9 @@ const mutations = {
       event_type:     { type: new GraphQLNonNull(GraphQLString) },
       detail:         { type: GraphQLString },
     },
-    async resolve(_, { application_id, event_type, detail }) {
+    async resolve(_, { application_id, event_type, detail }, ctx) {
       console.log('-> Add application event:', application_id, event_type);
+      await assertApplicationOwner(application_id, ctx);
       const res = await pool.query(
         `INSERT INTO application_events (application_id, event_type, detail)
          VALUES ($1::uuid, $2, $3)
@@ -166,8 +177,14 @@ const mutations = {
       file_id:        { type: new GraphQLNonNull(GraphQLID) },
       kind:           { type: GraphQLString },
     },
-    async resolve(_, { application_id, file_id, kind }) {
+    async resolve(_, { application_id, file_id, kind }, ctx) {
       console.log('-> Link file', file_id, 'to application', application_id);
+      await assertApplicationOwner(application_id, ctx);
+      // The file must be the caller's own upload too (admin may link any).
+      const file = await pool.query('SELECT uploaded_by FROM files WHERE id = $1::uuid', [file_id]);
+      if (!file.rows[0] || (ctx?.user?.tier !== 'admin' && file.rows[0].uploaded_by !== ctx?.user?.id)) {
+        throw new Error('File not found or not authorised');
+      }
       await pool.query(
         `INSERT INTO application_files (application_id, file_id, kind)
          VALUES ($1::uuid, $2::uuid, $3) ON CONFLICT (application_id, file_id) DO UPDATE SET kind = EXCLUDED.kind`,
@@ -182,8 +199,9 @@ const mutations = {
       application_id: { type: new GraphQLNonNull(GraphQLID) },
       file_id:        { type: new GraphQLNonNull(GraphQLID) },
     },
-    async resolve(_, { application_id, file_id }) {
+    async resolve(_, { application_id, file_id }, ctx) {
       console.log('-> Unlink file', file_id, 'from application', application_id);
+      await assertApplicationOwner(application_id, ctx);
       await pool.query(
         'DELETE FROM application_files WHERE application_id = $1::uuid AND file_id = $2::uuid',
         [application_id, file_id]

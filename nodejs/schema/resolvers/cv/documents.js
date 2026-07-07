@@ -27,6 +27,15 @@ const assertWritable = async (id, ctx) => {
   throw new Error('Not authorised for this CV node');
 };
 
+// Fetch a node and assert the caller may read it (owner, shared NULL, or admin).
+const assertReadable = async (id, ctx) => {
+  const res = await pool.query('SELECT owner_id FROM cv_components WHERE id = $1::uuid', [id]);
+  const row = res.rows[0];
+  if (!row) throw new Error('CV node not found');
+  if (isAdmin(ctx) || !row.owner_id || row.owner_id === userId(ctx)) return true;
+  throw new Error('Not authorised for this CV node');
+};
+
 // Read scope clause: owner OR shared (NULL). Admin gets no clause (sees all).
 const readScope = (ctx, params) => {
   if (isAdmin(ctx)) return '';
@@ -162,6 +171,9 @@ const mutations = {
     args: { parent_id: { type: GraphQLID }, child_id: { type: GraphQLID } },
     async resolve(_, { parent_id, child_id }, ctx) {
       await assertWritable(parent_id, ctx);
+      // The child must be readable too — compile walks relationships without an
+      // owner filter, so linking a foreign node would exfiltrate its content.
+      await assertReadable(child_id, ctx);
       return relateCvComponents(parent_id, child_id);
     },
   },

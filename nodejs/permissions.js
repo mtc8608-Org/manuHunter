@@ -75,7 +75,9 @@ module.exports = {
   ],
 
   // GraphQL query/mutation field names requiring role 'user' (or 'admin').
-  // Empty in the framework — forks add their owner-scoped domain ops here.
+  // Empty in this fork by design: the jobs/CV/survey domain ops live in
+  // `registered` (every account manages its own rows, owner-scoped in the
+  // resolvers), so nothing needs the middle tier.
   user: [],
 
   // Everything else requires role === 'admin'.
@@ -84,6 +86,7 @@ module.exports = {
   // decision worth documenting.)
   admin: [
     'roleList', 'createRole', 'updateRole', 'deleteRole',
+    'component', 'componentList', 'componentParents', 'componentRelationList',
     'createComponent', 'updateComponent', 'deleteComponent',
     'createComponentRelation', 'deleteComponentRelation', 'swapComponentPositions',
     'createSurveyComponent', 'updateSurveyComponent', 'deleteSurveyComponent',
