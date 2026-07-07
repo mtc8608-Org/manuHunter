@@ -1,6 +1,6 @@
 ---
-name: user-account-keychain-plan
-description: Design of the framework-level user_profile + user_secrets keychain (encrypted, write-only API keys, starting with the Anthropic key) and the Users backoffice page — implemented 2026-07-02
+name: user-secrets-keychain
+description: Design record (shipped 2026-07-02) — framework-level user_profile + user_secrets keychain (encrypted, write-only API keys, starting with the Anthropic key) and the Users backoffice page
 metadata:
   node_type: memory
   type: project

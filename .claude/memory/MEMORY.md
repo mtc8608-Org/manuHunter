@@ -7,7 +7,7 @@
 - [ManuLab context](manulab-context.md) — ManuSpine is the OSS framework manuHunter forks; body-analogy app family (ManuSkin/Lobe/Pulse/Beat/Cortex); the bigger federated-research vision
 - [Sibling apps](sibling-apps.md) — pointers to manuSpine and manuBeat memory (bedside telemetry, cardio port, manuEdge Pi agent) and reusable framework takeaways
 - [Served multi-user plan](served-multi-user-plan.md) — single-user today, but manuHunter (and all ManuLab apps) will be served multi-user; never take single-user shortcuts
-- [User account keychain plan](user-account-keychain-plan.md) — SHIPPED: framework user_profile (ex cv_profile) + encrypted user_secrets keychain (write-only API, registry in secrets-registry.js) + Users backoffice page replacing Account's admin cards; prereq for phase 5
+- [User secrets keychain](user-secrets-keychain.md) — SHIPPED design record: framework user_profile (ex cv_profile) + encrypted user_secrets keychain (write-only API, registry in secrets-registry.js) + Users backoffice page replacing Account's admin cards; invariants codified in rules/backend-api.md
 - [Framework sync ledger](framework-upstream-candidates.md) — the 2026-07-02 port is fully landed upstream; Landed section is the fork-side merge map (per-item deviations) read by pull-upstream; Pending holds future flag-upstream entries
 - [Mobile app path](mobile-app-path.md) — Capacitor removed upstream 2026-07-04 (unused, CVE-carrying); PWA install covers most needs; re-add procedure if app-store/native APIs ever needed
 - [EChart owned wrapper](echart-owned-wrapper.md) — chart glue is ours (charts/EChart.tsx), engine stays echarts ^6; echarts-for-react removed

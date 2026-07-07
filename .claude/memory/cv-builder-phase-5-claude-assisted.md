@@ -8,14 +8,14 @@ metadata:
 
 # Phase 5: Claude assisted route
 
-Parent plan: [[cv-builder-plan]]. Prereqs: the shipped backend + manual builder (both done — see [[cv-builder-plan]]) AND [[user-account-keychain-plan]] (not built): the Anthropic key comes from the `user_secrets` keychain server-side, never from the client.
+Parent plan: [[cv-builder-plan]]. Prereqs: the shipped backend + manual builder (both done — see [[cv-builder-plan]]) AND [[user-secrets-keychain]] (shipped 2026-07-02): the Anthropic key comes from the `user_secrets` keychain server-side, never from the client.
 
 Goal: mirror the content AI Import flow for CVs. Paste a job description, let Claude tailor a CV from the existing section library and identity, preview the generated nodes, and save as a new cvDocument.
 
 ## Backend route
 
 New route `nodejs/routes/cv/generate.js`, cloned from `nodejs/routes/framework/content.js`:
-- `POST /generate-cv`, multipart, SSE stream, blocks split on the `<<<END>>>` sentinel, `{ _done: true, message }` completion. API key: loaded server-side via `getUserSecret(req.user.id, 'anthropic_api_key')` ([[user-account-keychain-plan]]), 400 with a clear message if unset — NO client-supplied key, NO localStorage (content.js is migrated to the same pattern as part of the keychain plan). Use the same model the content route uses (`claude-sonnet-4-6` at the time of writing); confirm the current model id against the claude-api reference when implementing rather than assuming.
+- `POST /generate-cv`, multipart, SSE stream, blocks split on the `<<<END>>>` sentinel, `{ _done: true, message }` completion. API key: loaded server-side via `getUserSecret(req.user.id, 'anthropic_api_key')` ([[user-secrets-keychain]]), 400 with a clear message if unset — NO client-supplied key, NO localStorage (content.js is migrated to the same pattern as part of the keychain plan). Use the same model the content route uses (`claude-sonnet-4-6` at the time of writing); confirm the current model id against the claude-api reference when implementing rather than assuming.
 - Context sent to Claude: the pasted job description, the user's master identity values, and the current section library (names, types, and LaTeX of existing sections, entries, publications) so Claude can pick, reorder, and lightly reword rather than invent facts. This mirrors how content.js feeds the source `.tex` at `content.js:64-126`.
 - System prompt tuned to the cv node taxonomy (see [[cv-builder-plan]]): output JSON nodes of type cvSection, cvTextRow, cvEntry, cvPublication with the exact `data` shapes (now documented by the seed `init-scripts/03-init-cv.sql` and the assembler `cvAssemble.js`, since the phase-1 doc was deleted). One node per block. Emphasise: use only facts present in the provided library and identity, tailor emphasis and ordering to the job description, do not fabricate experience or publications.
 
@@ -34,4 +34,4 @@ New route `nodejs/routes/cv/generate.js`, cloned from `nodejs/routes/framework/c
 ## Notes
 
 - The manual route (shipped — see [[cv-builder-plan]]) and this AI route converge on the same DB state: a cvDocument tree, compiled by the same assembler and Python compiler.
-- Key handling superseded 2026-07-02 by [[user-account-keychain-plan]]: per-user key from `user_secrets`, read server-side only. Because keys are per-user, this route is user-accessible (add to the `user` list in `permissions.js`), not admin-only.
+- Key handling superseded 2026-07-02 by [[user-secrets-keychain]]: per-user key from `user_secrets`, read server-side only. Because keys are per-user, this route is user-accessible (add to the `user` list in `permissions.js`), not admin-only.
