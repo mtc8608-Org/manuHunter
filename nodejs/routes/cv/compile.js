@@ -19,17 +19,19 @@ const router = express.Router();
 
 const isAdmin = (req) => req.user?.tier === 'admin';
 
-// Assert the caller owns (or is admin for) a cvDocument, and return its row.
+// Assert the caller may compile a cvDocument (owner, admin, or shared NULL-owned
+// sample — the same read rule as the resolvers), and return its row.
 const loadOwnedDocument = async (id, req) => {
   const res = await pool.query('SELECT * FROM cv_components WHERE id = $1::uuid', [id]);
   const row = res.rows[0];
   if (!row || row.type !== 'cvDocument') return { error: 404 };
-  if (!isAdmin(req) && row.owner_id !== req.user.id) return { error: 403 };
+  if (!isAdmin(req) && row.owner_id && row.owner_id !== req.user.id) return { error: 403 };
   return { row };
 };
 
-const compileToPdf = async (docId) => {
-  const latex = await assembleCvLatex(docId);
+// Shared NULL-owned docs have no owner profile — render with the caller's.
+const compileToPdf = async (docId, profileOwnerId) => {
+  const latex = await assembleCvLatex(docId, profileOwnerId);
   const url = `http://${process.env.PYTHON_HOST}:${process.env.PYTHON_PORT}/latex/compile`;
   const { data } = await axios.post(
     url,
@@ -57,7 +59,7 @@ router.post('/cv/:id/compile', async (req, res) => {
   const { row, error } = await loadOwnedDocument(req.params.id, req);
   if (error) return res.status(error).json({ error: error === 404 ? 'CV not found' : 'Not authorised' });
   try {
-    const pdf = await compileToPdf(row.id);
+    const pdf = await compileToPdf(row.id, row.owner_id ?? req.user.id);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${row.name}.pdf"`);
     res.send(pdf);
@@ -76,7 +78,7 @@ router.post('/cv/:id/save-pdf', async (req, res) => {
 
   let pdf;
   try {
-    pdf = await compileToPdf(row.id);
+    pdf = await compileToPdf(row.id, row.owner_id ?? req.user.id);
   } catch (err) {
     const { status, body } = compileErrorPayload(err);
     console.error('-> CV save-pdf compile error:', body.error ?? err.message);

@@ -83,10 +83,11 @@ const queries = {
   cvDocumentList: {
     type: new GraphQLList(CvComponentType),
     async resolve(_, __, ctx) {
-      // A user's own CV roots; admin sees every document.
+      // A user's own CV roots plus shared NULL-owned samples (read-only for
+      // non-admins — writes on NULL nodes are admin-only); admin sees every document.
       const params = [];
       let where = `type = 'cvDocument'`;
-      if (!isAdmin(ctx)) { params.push(userId(ctx)); where += ` AND owner_id = $1::uuid`; }
+      if (!isAdmin(ctx)) { params.push(userId(ctx)); where += ` AND (owner_id = $1::uuid OR owner_id IS NULL)`; }
       const res = await pool.query(`SELECT * FROM cv_components WHERE ${where} ORDER BY name`, params);
       return res.rows;
     },

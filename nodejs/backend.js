@@ -93,7 +93,8 @@ server.listen(PORT, () => console.log('Server running on PORT http://localhost:'
       // The sample CV library + documents are seeded with owner_id NULL because
       // the admin row does not exist when init scripts run on a fresh volume.
       // Claim every non-template CV node for the admin so it is not globally
-      // visible (the default cvTemplate stays NULL → shared with all users).
+      // visible (the default cvTemplate stays NULL → shared with all users, as
+      // does the read-only cv_lorem_ sample CV from seed-cv-lorem.sql).
       // Idempotent: users never create NULL-owned nodes, so this only ever
       // matches the untouched seeds.
       try {
@@ -101,7 +102,7 @@ server.listen(PORT, () => console.log('Server running on PORT http://localhost:'
         const adminId  = adminRes.rows[0]?.id;
         if (adminId) {
           const stamped = await pool.query(
-            `UPDATE cv_components SET owner_id = $1 WHERE owner_id IS NULL AND type <> 'cvTemplate'`,
+            `UPDATE cv_components SET owner_id = $1 WHERE owner_id IS NULL AND type <> 'cvTemplate' AND name NOT LIKE 'cv\\_lorem\\_%'`,
             [adminId]
           );
           if (stamped.rowCount) console.log(`-> Stamped ${stamped.rowCount} seed CV node(s) to admin`);

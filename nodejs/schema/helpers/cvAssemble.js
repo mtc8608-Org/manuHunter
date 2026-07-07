@@ -109,13 +109,15 @@ const renderSection = async (section) => {
 };
 
 // ── Public entry point ─────────────────────────────────────────────────────────
-const assembleCvLatex = async (cvDocumentId) => {
+// profileOwnerId overrides whose identity profile is rendered — used when a
+// shared NULL-owned document is compiled by a caller (their profile, not none).
+const assembleCvLatex = async (cvDocumentId, profileOwnerId) => {
   const doc = await loadNode(cvDocumentId);
   if (!doc) throw new Error('CV document not found');
   const d = doc.data ?? {};
 
   // Identity comes from the owner's profile; only the tagline is per-CV.
-  const profile  = await loadProfile(doc.owner_id);
+  const profile  = await loadProfile(profileOwnerId ?? doc.owner_id);
   const identity = { ...profile, tagline: d.tagline ?? '' };
 
   const template = d.template_id ? await loadNode(d.template_id) : null;

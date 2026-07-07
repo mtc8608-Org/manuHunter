@@ -294,4 +294,5 @@ INSERT INTO cv_components (id, name, type, data, owner_id) VALUES
 
 
 -- The sample CV library and the two sample documents (personal data) are seeded
--- separately in the GITIGNORED init-scripts/seed-cv-samples.sql.
+-- separately in the GITIGNORED init-scripts/seed-cv-samples.sql. The shared,
+-- read-only lorem sample CV (no personal data) is in seed-cv-lorem.sql.

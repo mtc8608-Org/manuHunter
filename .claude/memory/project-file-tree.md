@@ -41,6 +41,7 @@ manuHunter/
 │   ├── 01-init-db.sql       # framework schema + editor-form seeds + User Feedback survey
 │   ├── 02-init-jobs.sql     # jobs domain: applications, response timeline, artifact links
 │   ├── 03-init-cv.sql       # cv domain: cv_components tree, relationships, cv_artifacts
+│   ├── seed-cv-lorem.sql    # shared read-only lorem sample CV (all node types; owner NULL)
 │   └── seed-landing.sql     # minimal placeholder landing (welcome card only — this fork
 │                            #   replaced upstream's App Guide / Developer Guide tree)
 ├── nodejs/                  # Express + GraphQL backend
