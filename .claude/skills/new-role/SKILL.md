@@ -64,5 +64,5 @@ selects fetch `roleList` and inject via `injectedOptions`). Nothing else needed.
 - Frontend: `pwa/src/pages/backoffice/Roles.tsx`, wrappers in `services/Api.ts`
   (`getRoles`/`createRole`/`updateRole`/`deleteRole`), `ROLE_FORM`/`ROLE_TIERS`
   in `constants.ts`, tier gating in `contexts/AuthContext.tsx`
-- The whole system is framework-generic — changes belong upstream in manuSpine
-  (tracked in `.claude/memory/framework-upstream-candidates.md`).
+- The whole system is framework code owned by upstream manuSpine; this fork
+  inherits it via merge and only adds app-level roles/gating.

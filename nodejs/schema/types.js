@@ -37,6 +37,8 @@ const SurveyAnswerType = new GraphQLObjectType({
   fields: () => ({
     id:           { type: GraphQLID },
     survey_id:    { type: GraphQLID },
+    owner_id:     { type: GraphQLID },
+    owner_email:  { type: GraphQLString },
     answers:      { type: GraphQLJSON },
     submitted_at: { type: GraphQLString },
   }),
@@ -276,4 +278,6 @@ module.exports = {
   ComponentInputType,
   UserType,
   RoleType,
+  UserProfileType,
+  UserSecretType,
 };

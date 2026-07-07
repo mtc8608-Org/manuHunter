@@ -1,159 +1,180 @@
 ---
 name: framework-upstream-candidates
-description: Running list of manuHunter changes that are framework-generic and should be pushed back to manuSpine (not domain-specific CV/jobs code)
+description: Framework sync ledger — generic changes flowing between manuSpine and its forks; the Landed section doubles as the fork-side merge map for pull-upstream
 metadata:
   node_type: memory
   type: project
 ---
 
-# Framework upstream candidates
+# Framework sync ledger (upstream candidates + fork merge map)
 
-Changes made in manuHunter that are generic (framework, not domain) and should be
-moved back into **manuSpine** so all derived apps get them. Pull/merge workflow is
-in CLAUDE.md "Framework upstream"; reuse rules in `.claude/rules/code-reuse.md`. Domain code (the CV
-builder, jobs) stays in manuHunter — only the reusable primitives below go up.
+Framework-generic changes built in a fork are flagged under **Pending**, recreated
+here in manuSpine (never cherry-picked), and moved to **Landed**. Forks then run
+`git fetch upstream && git merge upstream/master`. Three skills drive the cycle:
 
-Convention: framework fixes are made *in manuSpine* and flow up via merge. These
-were made here first (during CV builder work); port them to manuSpine when convenient.
+- `flag-upstream` — in a fork, right after building something generic: adds a Pending entry.
+- `port-upstream` — here in manuSpine: lands Pending items, moves them to Landed.
+- `pull-upstream` — in a fork: merges upstream and uses **Landed** below as its
+  conflict map. Keep the per-item deviations and merge notes accurate — they are
+  read by the next fork session before it merges.
 
-## Pending candidates (from CV builder work, 2026-07)
+## Fork status (as of 2026-07-04)
 
-- **FormRenderer `lines` field type** — added a `lines` case to the shared
-  `pwa/src/components/forms/FormRenderer.tsx` (switch at ~L90, `renderLines` at ~L216):
-  edits a `string[]` as a multi-line textarea (join on `\n` for display, split on
-  `\n` for value). Purely additive, no risk to existing types. Generic form-library
-  capability — clear upstream. Was needed for CV entry bullets.
+Neither fork has merged the 2026-07-02 framework batch yet. Both also receive
+the 2026-07-04 hardening items below in their next merge — the GraphQL gate fix
+is security-critical: every fork's copy of `schema/index.js` carries the
+first-selection-only bypass until it merges.
 
-- **PdfViewer shell component** — `pwa/src/components/shell/PdfViewer.tsx`: renders a PDF
-  from a `Blob` (owns the object-URL lifecycle) or a `src` URL, falls back to `EmptyState`.
-  Now a proper shell component (the CV page uses it) and listed in `.claude/rules/code-reuse.md`. Lift
-  into manuSpine's shell library as-is — no CV/domain coupling.
+- **manuHunter** (`cv-builder` branch) — the port source; its merge is mostly
+  echo-back of its own work. The real conflicts are exactly the recorded
+  deviations below: public permissions tier, CodeEditor `language` prop, generic
+  `form_user_profile` seed, Dockerfile apt package list. It also receives the
+  post-port items (surveys→registered tier, sync skills, dev-loop agents).
+- **manuBeat** (`master`) — last merged upstream **pre-port** (at 67c3a10), so its
+  next pull brings the entire batch at once. Heaviest follow-up is auth: the
+  tier-based lockdown defaults every GraphQL op to admin-only and adds REST
+  guards, so manuBeat's domain surface (bedside telemetry ingest, device-token
+  routes, WebSocket monitor, medical content) must be explicitly placed in tiers
+  during the merge or it breaks silently. Review device-token auth paths against
+  the new REST guards; `SECRETS_MASTER_KEY` must be added to its env. The
+  2026-07-04 survey reframe hits it hardest: its `bedside` domain models a
+  patient as a survey answer on `f000` — see that item's merge note below.
 
-- **FormRenderer `code` field type + CodeEditor** — `pwa/src/components/forms/CodeEditor.tsx`
-  is a dependency-free, collapsible, syntax-highlighted code editor (transparent textarea over
-  a highlighted `<pre>`, scroll-synced; LaTeX token colouring). FormRenderer gained a `code`
-  case (`renderCode`) that renders it, same pattern as the `lines`/`richtext` types. Highlighting
-  is LaTeX-only today; generalise the tokenizer per a `language` prop before porting. Purely additive.
+## Landed in manuSpine (all ported 2026-07-02) — merge notes per item
 
-- **Small shell tweaks (bundle with the above)** — `TreeEditor` `rootEditable` prop (Edit button
-  on the root header → `openEdit(root)`); `ResourcePanel` skips the sub-label line when
-  `getSubLabel` returns empty; `AreaShell` ICON_MAP gained `download`. All generic and low-risk.
+- ✅ **`.claude/` config layout (rules/, skills/, CLAUDE.md sections)**.
+  On merge: take upstream for shared rules/skills; fork-specific rules and
+  CLAUDE.md domain sections stay fork-side.
+- ✅ **FormRenderer `lines` + `code` field types, CodeEditor** — **deviation**:
+  upstream CodeEditor is generalised behind a `language` prop (tokenizer registry
+  in `CodeEditor.tsx`; `latex` is the only built-in, unknown → plain text);
+  FormRenderer passes `options.language`. manuHunter's copy is LaTeX-hardcoded.
+  On merge: manuHunter takes upstream and sets `options.language: "latex"` at its
+  CV-builder call sites/seeds; drop its hardcoded tokenizer.
+- ✅ **PdfViewer shell component** — ported as-is; no conflict expected.
+- ✅ **Small shell tweaks** — `TreeEditor` `rootEditable`, `ResourcePanel`
+  sub-label skip + `getBadge: Badge | Badge[]` (stacked), AreaShell ICON_MAP
+  additions (briefcase/download/people/key/person/settings). Take upstream.
+- ✅ **DataTable column-aware filters (Tier 1)** — ported verbatim
+  (`filterOptions`/`columnTypes` props, typed operators). Tier 2 (server-side
+  structured filtering) remains a follow-up in **all** repos.
+- ✅ **Collapsible layout columns (SplitPageLayout + AreaShell)** — as-is
+  (rotated-title rail; icon-only rail variant still an open idea; mobile not
+  addressed).
+- ✅ **SinglePanelLayout + User area** — layout + `pages/user/` Profile / Account /
+  Settings (dark-mode toggle lives in Settings now, not Menu/AppHeader),
+  `AREA_NAV.USER`. **Deviation**: manuSpine seeds a minimal generic
+  `form_user_profile` (name / contact email / website, d050–d053). On merge:
+  forks keep the form **name** but may replace the fields (manuHunter already has
+  a richer profile incl. picture — its seed fields win, form name stays).
+- ✅ **User account: `user_profile` + `user_secrets` keychain + Users backoffice
+  page** — DDL, d000/d010 seeds, `lib/secrets.js`, `secrets-registry.js`, users
+  resolvers, `SECRETS_MASTER_KEY` env, Settings Integrations card,
+  `backoffice/Users.tsx`. Content page's Anthropic key comes from the keychain
+  (Content.tsx + `generateContent` signature). On merge: `secrets-registry.js` is
+  app-tuned — fork keeps its own entries, takes upstream structure; every fork
+  must have `SECRETS_MASTER_KEY` set in its env/compose.
+- ✅ **`registered` role + self-registration** — `POST /api/register`,
+  `AuthContext` `isUser`/`register`, `UserRoute`, SignIn register mode, role seeds.
+- ✅ **Roles catalogue + tier-based enforcement + Roles backoffice page** — roles
+  table d020–d022 + forms d030/d040, `roles.js` resolver, tier claim in JWT,
+  legacy-token normalisation, `backoffice/Roles.tsx`, `ROLE_TIERS`.
+- ✅ **Auth lockdown** — unified query/mutation rule, tier checks, REST guards in
+  compute/content/files, owner-scoped files. **Deliberate deviation**: manuSpine
+  keeps a minimal `public` permissions tier containing **only** `componentByName`
+  (read-only) so seeded Landing/CMS content is visible anonymously; manuHunter
+  removed the public tier entirely. Invariant upstream: never add another op to
+  `public`. On merge: `permissions.js`/`schema/index.js` conflict is expected —
+  both are app-tuned; the **fork's** public-tier stance wins (manuHunter keeps
+  no-public), and each fork must place its domain ops into tiers explicitly
+  (everything unlisted becomes admin-only).
+- ✅ **BuildKit apt cache mount (python image)** — mechanism only (syntax line,
+  cache mounts, docker-clean removal). Package list is app-tuned: manuSpine ships
+  `hdf5-tools`; manuHunter keeps TeX Live. On merge: take upstream mechanism,
+  keep the fork's package list.
 
-- **DataTable column-aware filters (Tier 1)** — `pwa/src/components/shell/DataTable.tsx` filters
-  went from free-text "field key + value (contains)" to a **column dropdown** + per-type **operator**
-  (text: contains/=, enum: =, number/date: =/≥/≤) + a value control that switches to a dropdown
-  (`filterOptions`), date, or number input by column. Two new optional props — `filterOptions?:
-  Record<col,string[]>` and `columnTypes?: Record<col,'text'|'enum'|'number'|'date'>` — fully
-  backward-compatible (no props → text/contains, the old behaviour; verified Surveys still compiles).
-  ≥/≤ are refined client-side; contains/= still go to the fetcher for server-side use. Benefits every
-  DataTable (survey answers, applications table). Tier 2 (server-side structured filtering in the
-  resolver) is the follow-up, not done. Clear upstream.
+## Landed post-port (upstream-native, same merge batch)
 
-- **Collapsible layout columns (SplitPageLayout + AreaShell)** — both columns collapse to a
-  thin 44px rail (rotated title via `writing-mode: vertical-rl`, chevron restore button; whole
-  rail clickable). `SplitPageLayout` gained a `collapsibleLeft` prop (default on) that collapses
-  the left/list column and widens the detail pane; `AreaShell` collapses the section nav sidebar.
-  Collapsed state is persisted per-page/section in `localStorage` (`splitLeftCollapsed:<pathname>`,
-  `areaSidebarCollapsed:<title>`), starts expanded. The two collapse buttons are aligned to a shared
-  16px top offset (`AreaShell` sidebar `padding-top: 16px`; `SplitPageLayout` zeroes the Ionic
-  grid/left-col top padding). Pure shell-library UX, zero domain coupling — clear upstream. Note:
-  when the `AreaShell` sidebar is collapsed the nav links are hidden (restore to navigate); consider
-  an icon-only rail variant before/at port time. Mobile not addressed (see the layout's `@media` +
-  the responsive `sizeXs`/`IonSplitPane`/auto-collapse ideas from that discussion).
+Not from manuHunter — added directly in manuSpine after the port; forks receive
+these in the same `merge upstream/master`:
 
-- **BuildKit apt cache mount** — `python/Dockerfile` now uses
-  `RUN --mount=type=cache,target=/var/cache/apt … --mount=…/var/lib/apt/lists …` plus
-  `rm -f /etc/apt/apt.conf.d/docker-clean` and `# syntax=docker/dockerfile:1`, so apt
-  `.deb` downloads persist across builds (host-global BuildKit cache, shared by mount
-  target across projects). Generic build-infra win — belongs in manuSpine's python image.
-  Reuse in other projects by copying the same mount lines (Option A; use `id=apt` to
-  make cross-project sharing explicit).
+- ✅ **Surveys opened to the registered tier** (060bbfe) — `permissions.js`
+  survey ops moved to the registered tier; survey routes behind `UserRoute` in
+  `App.tsx`; `Menu.tsx`/`constants.ts` adjusted. All four files are app-tuned →
+  conflicts likely; take upstream's tier placement for survey ops, keep fork
+  domain entries.
+- ✅ **Upstream sync skills + diff-classifier agent** (b90b80d) —
+  `flag-upstream`/`port-upstream`/`pull-upstream` skills, `diff-classifier`
+  agent, one `.gitignore` line. Take upstream.
+- ✅ **Five development-loop agents** (d37a8b5) — pattern-scout,
+  convention-reviewer, slice-mapper, seed-author, ui-composer under
+  `.claude/agents/`. Take upstream.
+- ✅ **GraphQL gate hardening** (475730f, 2026-07-04) — the permission gate now
+  resolves the executed operation (`getOperationAST`) and enforces **every**
+  top-level field (fragment spreads expanded, fail closed); previously only
+  `definitions[0].selections[0]` was checked, so batching a privileged field
+  behind an allowed one — or leading with a fragment definition — bypassed
+  enforcement entirely (resolvers never check auth themselves). Rule line added
+  to `backend-api.md`. On merge: `schema/index.js` conflict is expected
+  (app-tuned) — the fork **must take upstream's gate mechanism**
+  (`topLevelFieldNames` + the per-field loop) and keep only its own tier-list
+  stance (e.g. manuHunter's no-public tier). Do not keep the fork's old
+  single-name gate.
+- ✅ **Seeded dev-guide auth docs updated to tier model** (8fccead, 2026-07-04) —
+  `seed-landing.sql`: permissions card rewritten (tier lists + every-top-level-
+  field gate), role→tier checks fixed in the JWT-middleware, writing-routes,
+  file-upload, pages-routing, and auth-architecture cards. On merge: take
+  upstream where the fork kept the framework dev-guide seeds; applies only
+  after `./run reset`.
+- ✅ **Login rate limiting** (2de9b96, 2026-07-04) — `express-rate-limit` on
+  `POST /login` (10 failed attempts per IP per 15 min; successful logins don't
+  count) in `routes/framework/auth.js`, plus `trust proxy: 1` in `backend.js`
+  for the single Caddy hop. On merge: take upstream (`auth.js`, `backend.js`,
+  `package.json`/lockfile); rebuild the node image for the new dependency.
+- ✅ **Survey reframe: owner-scoped answers + User Feedback demo + stats/compute
+  removal** (c0c68f0 / 1af9aaf / 9a4bfc3 / aae96c5 / 2ee6d3b, 2026-07-04) —
+  fixes the two owner-scoping majors from the exposure audit. Four parts:
+  (1) `survey_answers.owner_id UUID NOT NULL REFERENCES users(id)` + owner-scoped
+  resolvers (`surveyAnswers`/`updateAnswer` filter non-admins; `submitAnswer`
+  stamps `ctx.user.id`; `deleteAnswer` admin-only; `SurveyAnswerType` gains
+  `owner_id`/`owner_email`; Answers tab: admin-only By column + Delete). The
+  Survey System region moved **after** Users & Auth in `01-init-db.sql` (the FK
+  needs `users`). (2) Seeded `f000` survey reframed Patient Registration → User
+  Feedback (`surv_fb_*`, e000–e00d); `seed-sample-surveys.sql` deleted.
+  (3) Stats layer removed: `surveyStats` resolver, `routes/framework/compute.js`,
+  the Stats tab, `getSurveyStats`, `ENDPOINT.SURVEY_EXPORT`,
+  `python/api/domains/compute/` + pandas — the Python service is an empty
+  `/health` scaffold (framework ships no domains). (4) Survey/stats screenshots
+  deleted; App Guide survey cards + Dev Guide rewritten; docs/rules/skills point
+  at manuHunter's `cv/compile.js` + `latex/routes.py` as the compute exemplars.
+  On merge: **schema is reset-only, so `owner_id NOT NULL` lands via
+  `./run reset`** — any fork with domain code writing/reading `survey_answers`
+  must adapt to the owner column and scoped resolvers. **manuBeat's `bedside`
+  domain is a head-on collision** (a patient IS a survey answer on `f000`):
+  keep its own Patient Registration seed content if it wants it (app-tuned
+  seed wins), but it must take upstream's `survey_answers` DDL + resolver
+  scoping and decide who owns bedside-created answers. Forks keep their own
+  `python/api/domains/<domain>/` and Node compute callers (only the framework
+  `compute` domain and its `compute.js` route were deleted); regenerate
+  `requirements.lock` if the fork inherits the pandas removal.
 
-- **`.claude/` config layout (rules/, skills/, CLAUDE.md sections)** — manuHunter's Claude
-  Code config was refactored (2026-07): path-gated conventions in `.claude/rules/`
-  (now `backend-api`, `code-reuse`, `db-schema`, `files-storage`, `forms-ui`,
-  `page-structure`, `page-template`, `python-compute`), skills in `.claude/skills/`
-  (`new-api`, `new-compute`, `new-form`, `new-page`, `new-role`, `seed-content`,
-  `which-component`), and always-on rules (never-run, git style, knowledge locations,
-  upstream workflow, source of truth) as CLAUDE.md sections. All framework-generic
-  (the rules/skills describe the framework's own conventions, not CV/jobs) — port the
-  layout and the rule/skill files to manuSpine so every fork inherits the conventions;
-  each fork keeps only its domain memories.
+## Pending
 
-- **User account: `user_profile` + `user_secrets` keychain + Users backoffice page (2026-07-02)** —
-  the whole [[user-account-keychain-plan]] design is framework-generic: `user_profile` /
-  `user_secrets` DDL in `01-init-db.sql` (+ `form_user_editor`/`form_user_create` seeds, d000/d010),
-  `nodejs/lib/secrets.js` (AES-256-GCM, sole decrypt point) + `nodejs/secrets-registry.js`,
-  the `userProfile`/`upsertUserProfile`/`userSecrets`/`setUserSecret`/`clearUserSecret` resolvers
-  in `resolvers/framework/users.js` (+ `UserProfileType`/`UserSecretType`, permissions entries,
-  `SECRETS_MASTER_KEY` env), Account's Profile + Integrations cards, and `backoffice/Users.tsx`
-  (+ route/nav/PANEL_CONFIG.USERS). Only the profile *form shape* (`form_user_profile`) is app-level.
-  Port wholesale; each app seeds its own profile form.
+- **(Maybe) LaTeX compile service** — the `python/api/domains/latex/` compile
+  endpoint (pdflatex, shell-escape disabled, temp dir, timeout) + the Node bridge
+  pattern is largely generic ("compile a .tex string to PDF"). Borderline: it
+  exists to serve the CV builder, but the compile primitive could live in
+  manuSpine if another app needs LaTeX→PDF. Stays in manuHunter; revisit if a
+  second consumer appears.
 
-- **`ResourcePanel.getBadge` accepts `Badge | Badge[]`** — `pwa/src/components/shell/ResourcePanel.tsx`
-  exports `ResourceBadge`; an array renders as a vertical stack of smaller (10px) badges in one
-  end slot (Users page shows status + role). Must stay stacked: two side-by-side end-slot badges
-  starve `IonLabel` of width in the narrow left column (it collapses to 0 and the text wraps
-  char-by-char, stretching the item). Single-badge behaviour unchanged; `AreaShell`/`Menu` also
-  gained the `people` icon. Bundle with the shell tweaks above.
+**Why:** manuSpine is the shared framework; generic improvements made in a derived
+app must flow back so every app benefits and forks don't drift — and forks need an
+accurate map of what a merge will bring and where it will conflict.
 
-- **`registered` role + self-registration (2026-07-02)** — new any-JWT tier below `user`:
-  `permissions.js` gained the `registered` tier (below `user` role user-or-admin, above the
-  admin fallback) enforced in `schema/index.js`; survey reads/answers moved up to the `user`
-  tier; all self-service + domain ops sit in `registered`. (The `public` tier that briefly
-  sat below `registered` was later removed entirely — see the lockdown entry below.)
-  Public `POST /api/register` in `routes/framework/auth.js`
-  (role hardcoded `'registered'`, returns JWT). Frontend: `AuthContext` `isUser` flag +
-  `register()`, new `components/routing/UserRoute.tsx`, Surveys route/menu gated by
-  `isUser`, SignIn page sign-in/register mode toggle (+ confirm-password field),
-  `registered` option in the d001/d013 role dropdown seeds and `PANEL_CONFIG.USERS`
-  filter. All framework-generic except which ops go in which tier (app decision) —
-  port the mechanism wholesale.
-
-- **Roles catalogue + tier-based enforcement + Roles backoffice page (2026-07-02)** —
-  roles became data aliased onto the fixed three-tier ladder: `roles` table in
-  `01-init-db.sql` (system rows d020–d022, `users.role` FK `ON UPDATE CASCADE`, Roles-page
-  forms d030/d040), `resolvers/framework/roles.js` (`roleList`/`createRole`/`updateRole`/
-  `deleteRole`, system-role + in-use guards) + `RoleType`. Enforcement everywhere compares
-  the JWT's `tier` claim (resolved at login via JOIN, normalised for legacy tokens in
-  `backend.js`) instead of role-name literals — `schema/index.js`, REST admin checks,
-  jobs/cv resolvers, `AuthContext` `isAdmin`/`isUser`. Frontend: `backoffice/Roles.tsx`
-  (+ route/nav/`PANEL_CONFIG.ROLES`/`ROLE_FORM`/`ROLE_TIERS`, `key` icon in AreaShell),
-  Users page role selects fed from `roleList` via `injectedOptions`. Fully framework-generic
-  — port wholesale together with the `.claude/skills/new-role` skill.
-
-- **No public GraphQL tier — full auth lockdown (2026-07-02)** — the `public`
-  `permissions.js` tier was **removed**: every GraphQL operation now requires a valid JWT
-  (three tiers only — `registered` / `user` / admin fallback), so anonymous requests always
-  fail. `componentByName` moved from `public` into `registered` (FormRenderer + Landing
-  content now need a token). Anonymous visitors get **only** the REST `/login`, `/register`,
-  and the two tokenless file-download streams (`<img>` can't carry the header) — the invariant
-  is "never add another tokenless endpoint". Backoffice REST endpoints hardened to
-  `tier !== 'admin'` → 403 (survey stats export in `routes/framework/compute.js`,
-  `/generate-content` in `content.js`); `files.js` edit endpoint is owner-or-admin. Frontend
-  `Menu.tsx`/`AppHeader.tsx`/`constants.ts` adjusted so no nav/route assumes anonymous access.
-  Rules updated too (`backend-api.md`, `new-api` skill). Framework-generic — port with the
-  role/tier mechanism above.
-
-- **`SinglePanelLayout` + User area (2026-07-02)** — `pwa/src/components/shell/SinglePanelLayout.tsx`,
-  the single-column sibling of `SplitPageLayout` (same shell: AppHeader + AreaShell + `hidden` +
-  `children`; one centered `TabPanel` column via `tabs`, `header` strip, `contentSize` width;
-  imports the now-exported `RIGHT_HEADER_STYLE`). New layout rule in `code-reuse.md`/`page-template.md`:
-  list needed → `SplitPageLayout`, no list → `SinglePanelLayout`. Used by the User area
-  (`pages/user/` Profile / Account / Settings, `AREA_NAV.USER`, dark-mode toggle moved from
-  AppHeader/Menu to Settings; `person`/`settings` icons in AreaShell ICON_MAP). The layout,
-  rule text, and the Account/Settings pages are framework-generic — port together; the Profile
-  page's form shape stays app-level.
-
-- **(Maybe) LaTeX compile service** — the `python/api/domains/latex/` compile endpoint
-  (pdflatex, shell-escape disabled, temp dir, timeout) + the Node bridge pattern is
-  largely generic ("compile a .tex string to PDF"). Borderline: it exists to serve the
-  CV builder, but the compile primitive itself could live in manuSpine if another app
-  needs LaTeX→PDF. Leave in manuHunter for now; revisit if a second consumer appears.
-
-**Why:** manuSpine is the shared framework; generic improvements made in a derived app
-should flow back so every app benefits and the fork doesn't drift.
-
-**How to apply:** when porting, recreate the change in manuSpine (don't cherry-pick —
-see CLAUDE.md "Framework upstream"), then merge upstream into manuHunter. Tick items off
-here as they land in manuSpine.
+**How to apply:** in manuSpine, run `port-upstream` on Pending items (recreate from
+the fork source, commit, move to Landed with deviations recorded). In a fork, run
+`pull-upstream`: read the Landed merge notes above first, then
+`git fetch upstream && git merge upstream/master` — never cherry-pick. On conflict,
+fork keeps app-tuned content (permission tiers, seeds, package lists, registry
+entries), takes upstream mechanism/framework files. Update the **Fork status**
+section here (in manuSpine) once a fork has merged.

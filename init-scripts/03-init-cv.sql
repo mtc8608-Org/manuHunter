@@ -145,10 +145,10 @@ INSERT INTO components_relationships (parent_id, child_id, position) VALUES
 INSERT INTO components (id, name, type, data, options) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf40', 'form_cv_template', 'form',     '{"text": "Template"}',    '{"label": "form_cv_template"}'),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf45', 'cv_tpl_name',      'input',    '{"text": "Template name"}', '{"label": "name"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf41', 'cv_tpl_preamble',  'code', '{"text": "Preamble (LaTeX up to begin document)"}', '{"label": "preamble"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf42', 'cv_tpl_header',    'code', '{"text": "Header (identity block)"}', '{"label": "header"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf43', 'cv_tpl_docopen',   'code',     '{"text": "Doc open"}',    '{"label": "docOpen"}'),
-  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf44', 'cv_tpl_docclose',  'code',     '{"text": "Doc close"}',   '{"label": "docClose"}');
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf41', 'cv_tpl_preamble',  'code', '{"text": "Preamble (LaTeX up to begin document)"}', '{"label": "preamble", "language": "latex"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf42', 'cv_tpl_header',    'code', '{"text": "Header (identity block)"}', '{"label": "header", "language": "latex"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf43', 'cv_tpl_docopen',   'code',     '{"text": "Doc open"}',    '{"label": "docOpen", "language": "latex"}'),
+  ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf44', 'cv_tpl_docclose',  'code',     '{"text": "Doc close"}',   '{"label": "docClose", "language": "latex"}');
 INSERT INTO components_relationships (parent_id, child_id, position) VALUES
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf40', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf45', 1),
   ('c51c1e5f-5cc1-4b77-8832-2d10cc97cf40', 'c51c1e5f-5cc1-4b77-8832-2d10cc97cf41', 2),

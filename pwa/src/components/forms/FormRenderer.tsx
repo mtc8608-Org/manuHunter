@@ -14,8 +14,8 @@ import { Controller, useForm } from 'react-hook-form';
 import { ComponentResults } from '../../interfaces/types';
 import { DEFAULT_COLOR } from '../../constants';
 import RichTextEditor from './RichTextEditor';
-import CodeEditor from './CodeEditor';
 import ImagePicker from './ImagePicker';
+import CodeEditor from './CodeEditor';
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║  FormRenderer — unified renderer for both component trees and survey trees  ║
@@ -213,7 +213,8 @@ const FormRenderer: React.FC<FormRendererProps> = ({
     </IonItem>
   );
 
-  // `code` — a collapsible, syntax-highlighted LaTeX editor (see CodeEditor).
+  // `code` — a collapsible, syntax-highlighted code editor (see CodeEditor).
+  // Language comes from options.language (defaults to latex).
   const renderCode = (node: ComponentResults, key: string, parentId: string) => (
     <div key={node.id ?? node.name} style={{ paddingInline: 4 }}>
       <Controller
@@ -222,6 +223,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
         render={({ field }) => (
           <CodeEditor
             label={node.data?.text}
+            language={node.options?.language}
             value={field.value ?? ''}
             onChange={field.onChange}
           />
@@ -232,7 +234,7 @@ const FormRenderer: React.FC<FormRendererProps> = ({
   );
 
   // `lines` — edit a string[] as a multi-line textarea (one item per line).
-  // Stores an array so consumers (e.g. the CV assembler bullets) keep their shape.
+  // Stores an array so consumers keep their list shape.
   const renderLines = (node: ComponentResults, key: string, parentId: string) => (
     <IonItem key={node.id ?? node.name}>
       <Controller

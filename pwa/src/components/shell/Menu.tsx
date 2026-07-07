@@ -1,7 +1,7 @@
 // Menu — the hamburger slide-out drawer.
 // - Links to every major section of the app
 // - Shows the logged-in user's name and email
-// - Logout button
+// - Logout button (dark mode toggle lives in Settings)
 import {
   IonContent,
   IonIcon,
@@ -30,7 +30,7 @@ import './Menu.css';
 
 const Menu: React.FC = () => {
   const location = useLocation();
-  const { user, isAdmin, isUser, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -78,7 +78,7 @@ const Menu: React.FC = () => {
           </IonList>
         )}
 
-        {isUser && (
+        {user && (
           <IonList>
             <IonListHeader>Surveys</IonListHeader>
             {navItem(ROUTE.SURVEYS, clipboardOutline, 'Surveys')}

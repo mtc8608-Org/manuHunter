@@ -19,7 +19,7 @@ All file endpoints live in `routes/framework/files.js`; domain code reuses them 
 
 ## Linking files to domain entities
 
-Domain tables never store keys/paths — they join to `files(id)` through a link table with `ON DELETE CASCADE` on both sides (`application_files`, `cv_artifacts`), optionally with a `kind` column. Uploading and linking are separate steps: `POST /api/files/upload` first, then a domain mutation like `linkApplicationFile` records the association.
+Domain tables never store keys/paths — they join to `files(id)` through a link table with `ON DELETE CASCADE` on both sides (fork examples: manuHunter's `application_files`, `cv_artifacts`), optionally with a `kind` column. Uploading and linking are separate steps: `POST /api/files/upload` first, then a domain mutation records the association.
 
 ## Access and scoping
 
@@ -29,4 +29,4 @@ Domain tables never store keys/paths — they join to `files(id)` through a link
 
 ## Seeded assets
 
-Seed images as PNGs under `pwa/public/` (mounted read-only at `/public` in the nodejs container); a `backend.js` startup scan seeds each as MinIO key `seed-<basename>` with a `files` row (`ON CONFLICT DO NOTHING`), so they survive `./run reset`. Seed SQL references them **only** as `http://localhost:3000/api/files/seed-<filename>/download-by-key` — never as static paths like `/screenshots/foo.png`. (Startup-scan pattern: manuSpine's `nodejs/backend.js`; port it if this repo's `backend.js` doesn't have the block yet.)
+Seed images as PNGs under `pwa/public/` (mounted read-only at `/public` in the nodejs container); the `backend.js` startup scan seeds each as MinIO key `seed-<basename>` with a `files` row (`ON CONFLICT DO NOTHING`), so they survive `./run reset`. Seed SQL references them **only** as the origin-relative `/api/files/seed-<filename>/download-by-key` — never as static paths like `/screenshots/foo.png`, and never with an absolute host (the same seed must work in dev behind the vite proxy and in prod behind Caddy).

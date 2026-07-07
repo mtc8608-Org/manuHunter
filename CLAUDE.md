@@ -7,16 +7,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Always use `./run` from the repo root. Never raw `docker compose` commands.
 
 ```bash
-./run                        # start all services (builds pwa image if missing)
-./run rebuild <service>      # rebuild after Dockerfile/requirements changes
-./run reset                  # wipe DB + MinIO and restart (re-runs init-scripts)
-./run rebuild-reset <service># rebuild image AND wipe DB
+./run                        # start all services (builds all images only if the pwa image is missing)
 ./run down                   # stop everything
+./run rebuild [service]      # rebuild after Dockerfile/deps changes, then start — omit service to rebuild ALL
+./run reset                  # wipe DB + MinIO and restart (re-runs init-scripts; no build)
+./run rebuild-reset [service]# wipe DB + MinIO AND rebuild (all if omitted), then start
 ```
+
+Every form ends in a foreground `docker compose up` (Ctrl-C stops it) — never chain `./run` invocations with `&&`. Builds pass the host UID/GID as build args. A background poller prints a `STACK READY` banner (and a desktop notification) once all three services answer — the pwa dev server lags the rest by minutes after a rebuild.
 
 Service URLs: Frontend `http://localhost:8100` · GraphQL `http://localhost:3000/graphql` · Python `http://localhost:5000`
 
 **Never execute `./run` (or docker) yourself** — the user controls the runtime/DB lifecycle (`reset` wipes DB + MinIO). Finish a task by stating which command the user must run: `./run reset` for init-script/seed changes, `./run rebuild <service>` for Dockerfile/deps changes, plain `./run` otherwise.
+
+## Dependency policy
+
+- Node manifests use caret ranges — never exact pins. The committed `package-lock.json` is the enforcement: every install is `npm ci` (Dockerfiles and entrypoints), and containers never write lockfiles.
+- Updating deps is a deliberate laptop-side act: `npm install --package-lock-only` / `npm audit fix --package-lock-only` in the service dir, review the lockfile diff, then plain `./run` (entrypoints reinstall) — `./run rebuild <service>` only if the Dockerfile changed.
+- Python: `requirements.txt` states intent (unpinned); `python/requirements.lock` is the enforced freeze the image installs. Regeneration procedure: `.claude/rules/python-compute.md`.
 
 ## Git style
 
@@ -38,6 +46,11 @@ manuHunter is forked from **manuSpine** (`git@github.com:mtc8608/manuSpine.git`,
 
 The upstream framework **manuSpine** (`/home/cabsman/Documents/projects/manuSpine`) is the main source of truth for patterns. Before implementing anything non-trivial, find the closest existing implementation here or in manuSpine and replicate its pattern exactly. Only design something new if it genuinely does not exist in either. The original project (archived at `/home/cabsman/Documents/archive/cabeleira-legacy/`) is retired as an authority — historical background only. `cabeleira.net` now refers to the live domain, not that codebase.
 
+## File placement
+
+The annotated repo map lives in `.claude/memory/project-file-tree.md`. Before asserting where anything lives or choosing where a new file goes, check it — and verify against `ls` when it matters (empty dirs are invisible to git). Any change that adds, moves, or removes a directory updates the map in the same commit.
+
+
 ## Architecture
 
 ### Five-service stack
@@ -53,7 +66,7 @@ pwa (React + Ionic + Vite)
 - **Routing** — React Router v5 via `IonReactRouter`. Public routes, `PrivateRoute` (requires JWT), `AdminRoute` (requires admin role). Registered in `App.tsx`. No catch-all redirect — unmatched paths render blank.
 - **Auth** — `AuthContext` stores the JWT in `localStorage`, decodes the payload on load, and verifies against `/api/me` on startup. `useAuth()` exposes `token`, `user`, `isAdmin`, `login`, `logout`.
 - **API** — all calls go through `services/Api.ts`. GraphQL via `graphql-http`, REST via `axios`. Auth header injected automatically.
-- **Shell components** — `SplitPageLayout`, `AreaShell`, `ResourcePanel`, `DataTable`, `ModalShell`, `TabPanel`, `EmptyState`, `TreeEditor` — these are the building blocks for every page.
+- **Shell components** — `SplitPageLayout`, `AreaShell`, `ResourcePanel`, `DataTable`, `ModalShell`, `TabPanel`, `EmptyState`, `TreeEditor` — these are the building blocks for every page. Sibling `components/` folders by function: `charts/` (`EChart`), `content/` (CMS card renderers), `forms/` (form system), `routing/` (route guards).
 
 ### Component tree system
 UI structure (forms, inputs, selects, plots) is stored as nodes in the `components` table with JSONB `data` and `options`. Parent-child ordering uses `components_relationships.position`. `FormRenderer` turns a fetched tree into a live form. `TreeEditor` lets admins build/edit trees in the Configuration page. `ComponentForm` is the edit modal.
@@ -105,10 +118,11 @@ Parent-child links use `components_relationships(parent_id, child_id, position)`
 
 ### Seeding content images
 
-Content images always go through MinIO + the `files` table (pattern from manuSpine's `nodejs/backend.js`):
+Content images always go through MinIO + the `files` table:
 
 1. Place PNGs under `pwa/public/` (e.g. `pwa/public/screenshots/`); `pwa/public` is mounted read-only at `/public` in the nodejs container.
 2. On startup `backend.js` scans `/public/**/*.png` (skipping `favicon.png`), seeds each into MinIO with key `seed-<basename>`, and inserts a `files` row (`ON CONFLICT DO NOTHING`).
-3. Seed SQL references images as `"src": "http://localhost:3000/api/files/seed-<filename>/download-by-key"`.
+3. Seed SQL references images as `"src": "/api/files/seed-<filename>/download-by-key"` (origin-relative — the same seed works in dev behind the vite proxy and in prod behind Caddy).
 
-**Never** use static paths like `"/screenshots/app-foo.png"` as `data.src` — images must have `files` rows and survive DB resets via stable keys.
+**Never** use static paths like `"/screenshots/app-foo.png"` as `data.src` — images must have `files` rows and survive DB resets via stable keys. Never bake an absolute host into `data.src`.
+

@@ -11,8 +11,8 @@ The schema exists only as `init-scripts/*.sql`, run alphabetically on a **fresh*
 
 ## File layout
 
-- `01-init-db.sql` — framework schema + seeds. Framework-generic changes belong upstream in manuSpine first (CLAUDE.md "Framework upstream").
-- `02-init-<domain>.sql` — one file per domain; runs after `01`, so framework tables (`users`, `files`, `components`, …) already exist and can be referenced.
+- `01-init-db.sql` — framework schema + seeds. Framework-generic changes belong upstream in manuSpine first and flow down via merge (CLAUDE.md "Framework upstream").
+- `02-init-<domain>.sql` — one file per domain (added by forks); runs after `01`, so framework tables (`users`, `files`, `components`, …) already exist and can be referenced.
 - `seed-*.sql` — content seeds; run last alphabetically.
 
 ## Table style
@@ -28,10 +28,10 @@ Hardcode every seed UUID that code references (never `uuid_generate_v4()` for th
 
 - Framework seeds: `c51c1e5f-5cc1-4b77-8832-2d10cc97XXXX`
 - Content seeds: `00000000-0000-0000-0000-XXXXXXXXXXXX`
-- Domain seeds: pick one stable prefix per form/group and stick to it (jobs uses `aaaaf001-…`/`aaaaf002-…`)
+- Domain seeds (in forks): pick one stable prefix per form/group and stick to it (manuHunter's jobs domain uses `aaaaf001-…`/`aaaaf002-…`)
 
 Seed names/UUIDs used by the frontend are mirrored in `pwa/src/constants.ts` with a comment naming the init script as source of truth.
 
 ## Owned seed rows
 
-Rows with a user FK are seeded with the owner NULL (the admin user is created by Node at startup, after init scripts run). If a seed must belong to the admin, add an idempotent claim in `backend.js`'s startup block (`UPDATE ... SET owner_id = $admin WHERE owner_id IS NULL ...` — see the CV seed ownership block).
+Rows with a user FK are seeded with the owner NULL (the admin user is created by Node at startup, after init scripts run). If a seed must belong to the admin, add an idempotent claim in `backend.js`'s startup block (`UPDATE ... SET owner_id = $admin WHERE owner_id IS NULL ...` — worked example: manuHunter's CV seed ownership block).

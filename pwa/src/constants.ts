@@ -208,8 +208,10 @@ export const CV_FORM = {
   TEMPLATE: 'form_cv_template',
 } as const;
 
-// The user_profile shape this app seeds (03-init-cv.sql). Rendered on the user
-// Profile page; saved via upsertUserProfile; read by CV compile (cvAssemble).
+// #region User & Role Management Forms
+// The user_profile shape this app seeds (03-init-cv.sql — replaces upstream's
+// generic d050 seed, same form name). Rendered on the user Profile page; saved
+// via upsertUserProfile; read by CV compile (cvAssemble).
 export const USER_PROFILE_FORM = 'form_user_profile';
 
 // Framework user-management forms (backoffice Users page). Source: 01-init-db.sql d000/d010.
@@ -245,16 +247,58 @@ export const CV_ADDABLE_TYPES = [
   { value: CV_TYPE.TEXTROW,     label: 'Text Row'    },
   { value: CV_TYPE.PUBLICATION, label: 'Publication' },
 ];
+
+// #endregion
+///////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////
+// #region Form Usage Registry
+// Component-tree name → the app UI it powers. Trees are bound to pages only
+// by fetch-by-name calls in code (the constant groups above), so this registry
+// is the single place that records the binding for display — the Configuration
+// page shows it so admins can tell what each tree drives before touching it.
+// Keep in sync when adding a form constant; forks append entries // [MY DOMAIN]
+export const FORM_USAGE: Record<string, string> = {
+  [EDITOR_ID.DEFAULT]:            'Configuration — component editor modal',
+  [EDITOR_ID.PLOT]:               'Configuration — plot editor modal',
+  [CONTENT_EDITOR_ID.HTML]:       'Content — HTML / LaTeX card editor',
+  [CONTENT_EDITOR_ID.IMAGE]:      'Content — image card editor',
+  [CONTENT_EDITOR_ID.HTML_IMAGE]: 'Content — HTML+image card editor',
+  [FORM_ID.FILE_DETAIL]:          'Files — detail form',
+  [FORM_ID.NEW_SURVEY]:           'Surveys — new survey modal',
+  [FORM_ID.NEW_PAGE]:             'Content — new page modal',
+  form_survey_q_text:             'Surveys — question editor (text / number / textarea)',
+  form_survey_q_scale:            'Surveys — question editor (scale)',
+  form_survey_q_default:          'Surveys — question editor (select / check / date / section)',
+  [USER_PROFILE_FORM]:            'Profile — user profile form',
+  [USER_FORM.EDITOR]:             'Users — detail editor',
+  [USER_FORM.CREATE]:             'Users — new user modal',
+  [ROLE_FORM.EDITOR]:             'Roles — detail editor',
+  [ROLE_FORM.CREATE]:             'Roles — new role modal',
+  // [JOBS]
+  [APP_FORM.APPLICATION]:         'Applications — application editor',
+  [APP_FORM.EVENT]:               'Applications — new event modal',
+  // [CV]
+  [CV_EDITOR_ID[CV_TYPE.SECTION]]:     'CVs — section editor',
+  [CV_EDITOR_ID[CV_TYPE.TEXTROW]]:     'CVs — text row editor',
+  [CV_EDITOR_ID[CV_TYPE.ENTRY]]:       'CVs — entry editor',
+  [CV_EDITOR_ID[CV_TYPE.PUBLICATION]]: 'CVs — publication editor',
+  [CV_FORM.TEMPLATE]:                  'Templates — template editor',
+  [CV_FORM.DOCUMENT]:                  'CVs — document details + New CV modal',
+};
 // #endregion
 ///////////////////////////////////////////////////////////////////////////////
 
 
 ///////////////////////////////////////////////////////////////////////////////
 // #region API Configuration
-// Node.js backend service address. Change here if the port or host moves.
-// The backend reads its own port from .env (NODE_PORT); keep these in sync.
-export const API_BASE    = 'http://localhost:3000/api';
-export const GQL_URL     = 'http://localhost:3000/graphql';
+// Backend URLs are origin-relative: the app always talks to the origin that
+// served it. In dev the vite proxy (vite.config.ts) forwards /api and
+// /graphql to the nodejs container; in prod Caddy does the same. One build
+// artifact works on any host — never reintroduce an absolute host here.
+export const API_BASE    = '/api';
+export const GQL_URL     = '/graphql';
 
 // REST endpoint paths (relative to API_BASE)
 export const ENDPOINT = {
@@ -264,7 +308,6 @@ export const ENDPOINT = {
   FILES:            '/files',
   FILES_UPLOAD:     '/files/upload',
   GENERATE_CONTENT: '/generate-content',
-  SURVEY_EXPORT:    '/surveys',   // + `/${id}/stats/export`
   APPLICATIONS:     '/applications',   // + `/${id}/files` for artifact upload
   CV:               '/cv',        // + `/${id}/compile`, `/${id}/save-pdf`, `/artifacts/${id}`
 } as const;
@@ -292,9 +335,9 @@ export const PANEL_CONFIG = {
     },
   },
   CONFIG_COMPONENTS: {
-    title: 'Components', emptyMessage: 'Select a type to load.',
+    title: 'Components', emptyMessage: 'No components yet.',
     add: { enabled: true, label: 'New Component' },
-    filter: { text: { enabled: false }, type: { enabled: true, options: ['form', 'input', 'select', 'check', 'plot', 'plotGrid'] } },
+    filter: { text: { enabled: false }, type: { enabled: true, allLabel: 'Forms', options: ['input', 'select', 'check', 'plot', 'plotGrid'] } },
   },
   FILES_LIST: {
     title: 'Files', emptyMessage: 'No files found.',
@@ -441,7 +484,7 @@ export const AREA_NAV = {
 export const NAV_SECTIONS = [
   { label: 'Job Applications', routes: ['/folder/Applications', '/folder/Artifacts'],                 link: '/folder/Applications',  icon: 'briefcase'  },
   { label: 'CV Builder',   routes: ['/folder/CVs', '/folder/GeneratedCVs', '/folder/Templates'],      link: '/folder/CVs',           icon: 'document-text' },
-  { label: 'Surveys',    routes: ['/folder/Surveys'],                                             link: '/folder/Surveys',       icon: 'clipboard',  userOnly: true },
+  { label: 'Surveys',    routes: ['/folder/Surveys'],                                             link: '/folder/Surveys',       icon: 'clipboard'  },
   { label: 'Backoffice', routes: ['/folder/Content', '/folder/Files', '/folder/Configuration', '/folder/Users', '/folder/Roles'],   link: '/folder/Content',       icon: 'construct',  adminOnly: true },
 ] as const;
 // #endregion

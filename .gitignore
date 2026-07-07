@@ -13,6 +13,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+!.env.prod.example
 
 # ── Node.js ──────────────────────────────────────────────────
 node_modules/
@@ -46,6 +47,9 @@ htmlcov/
 
 # ── Database & persistent storage ────────────────────────────
 .persist/
+# Scratch dir for the local prod-compose smoke test (stand-in for the
+# on-box /srv/apps/<app>/public mount) — never committed.
+/public/
 
 # ── Personal CV seed (schema/template stay in 03-init-cv.sql; this holds
 #    the real CV content — name, contacts, publications) ──────────────────
@@ -59,5 +63,9 @@ init-scripts/seed-cv-samples.sql
 !.claude/memory/
 !.claude/rules/
 !.claude/skills/
-# ...except personal notes about the user
+!.claude/agents/
+# ...except personal notes, personal infra, and the brainstorm ledger
 .claude/memory/user-manuel.md
+.claude/memory/deployment-plan.md
+.claude/memory/production-walkthrough.md
+.claude/memory/idea-ledger.md

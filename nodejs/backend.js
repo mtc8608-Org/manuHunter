@@ -12,6 +12,12 @@ const server = express();
 server.use(express.json());
 server.use(cors());
 
+// Exactly one reverse-proxy hop (Caddy) in front of node in production, so
+// req.ip must come from its X-Forwarded-For — the login rate limiter keys on
+// it, and without this every client would share the proxy's IP (one attacker
+// could lock everyone out). Harmless in dev, where there is no proxy.
+server.set('trust proxy', 1);
+
 // ── JWT decode middleware ──────────────────────────────────────────────────────
 // Runs on every request. Attaches req.user if token is present and valid.
 // Always calls next() — public routes continue even without a token.
@@ -51,7 +57,6 @@ server.all('/graphql', graphqlHandler);
 server.use('/api', require('./routes/framework/auth'));
 server.use('/api', require('./routes/framework/files'));
 server.use('/api', require('./routes/framework/content'));
-server.use('/api', require('./routes/framework/compute'));
 
 // [JOBS]
 server.use('/api', require('./routes/jobs/applications'));
@@ -62,6 +67,10 @@ server.use('/api', require('./routes/cv/compile'));
 // ── Startup ───────────────────────────────────────────────────────────────────
 // Start listening immediately so the container is healthy, then seed the admin
 // user in the background with retries (postgres may not be ready yet).
+
+if (!/^[0-9a-fA-F]{64}$/.test(process.env.SECRETS_MASTER_KEY ?? '')) {
+  console.warn('-> SECRETS_MASTER_KEY missing or not 64 hex chars — the user_secrets keychain is disabled (generate one with `openssl rand -hex 32` and add it to .env)');
+}
 
 server.listen(PORT, () => console.log('Server running on PORT http://localhost:' + PORT));
 

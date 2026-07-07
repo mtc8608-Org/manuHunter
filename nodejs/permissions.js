@@ -5,8 +5,9 @@
 //   user       — tier must be 'user' or 'admin'
 //   admin      — tier must be 'admin'; EVERYTHING not listed above defaults here
 //
-// There is NO public tier: every GraphQL operation requires a valid JWT —
-// anonymous requests always fail. Anonymous visitors get only the REST
+// There is NO public tier (deliberate deviation from upstream, which keeps a
+// componentByName-only public list): every GraphQL operation requires a valid
+// JWT — anonymous requests always fail. Anonymous visitors get only the REST
 // /login and /register endpoints (and the tokenless file-download streams,
 // which exist because <img> tags cannot carry the auth header).
 //
@@ -62,10 +63,8 @@ module.exports = {
     'createCvDocument',
     'updateCvDocument',
     'deleteCvDocument',
-  ],
-
-  // GraphQL query/mutation field names requiring role 'user' (or 'admin')
-  user: [
+    // surveys — viewing and answering is open to every signed-in account;
+    // answer reads/edits are owner-scoped in the resolver (admin sees all)
     'surveyList',
     'surveyComponent',
     'surveyComponentList',
@@ -75,15 +74,20 @@ module.exports = {
     'updateAnswer',
   ],
 
+  // GraphQL query/mutation field names requiring role 'user' (or 'admin').
+  // Empty in the framework — forks add their owner-scoped domain ops here.
+  user: [],
+
   // Everything else requires role === 'admin'.
-  // (Informational — enforcement uses the fallback rule above. Only list real mutations.)
+  // (Informational — enforcement uses the fallback rule above. List admin ops,
+  // mutations and queries alike, whose admin-only status is a deliberate
+  // decision worth documenting.)
   admin: [
-    'surveyStats',
     'roleList', 'createRole', 'updateRole', 'deleteRole',
     'createComponent', 'updateComponent', 'deleteComponent',
-    'createComponentRelation', 'deleteComponentRelation',
+    'createComponentRelation', 'deleteComponentRelation', 'swapComponentPositions',
     'createSurveyComponent', 'updateSurveyComponent', 'deleteSurveyComponent',
-    'createSurveyComponentRelation', 'deleteSurveyComponentRelation',
-    'createSurvey', 'updateSurvey', 'deleteSurvey', 'deleteAnswer',
+    'createSurveyComponentRelation', 'deleteSurveyComponentRelation', 'swapSurveyComponentPositions',
+    'createSurvey', 'deleteAnswer',
   ],
 };

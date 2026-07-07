@@ -256,7 +256,7 @@ const getSurveyAnswers = async (survey_id: string, filter?: Record<string, any>)
     const result = await gql(`
       query SurveyAnswers($survey_id: ID!, $filter: JSON) {
         surveyAnswers(survey_id: $survey_id, filter: $filter) {
-          id survey_id answers submitted_at
+          id survey_id owner_id owner_email answers submitted_at
         }
       }
     `, { survey_id, filter: filter ?? {} });
@@ -269,7 +269,7 @@ const submitAnswer = async (survey_id: string, answers: Record<string, any>) => 
     return await gql(`
       mutation SubmitAnswer($survey_id: ID!, $answers: JSON) {
         submitAnswer(survey_id: $survey_id, answers: $answers) {
-          id survey_id answers submitted_at
+          id survey_id owner_id answers submitted_at
         }
       }
     `, { survey_id, answers });
@@ -281,7 +281,7 @@ const updateAnswer = async (id: string, answers: Record<string, any>) => {
     return await gql(`
       mutation UpdateAnswer($id: ID!, $answers: JSON) {
         updateAnswer(id: $id, answers: $answers) {
-          id survey_id answers submitted_at
+          id survey_id owner_id answers submitted_at
         }
       }
     `, { id, answers });
@@ -294,15 +294,6 @@ const deleteAnswer = async (id: string) => {
       mutation DeleteAnswer($id: ID!) { deleteAnswer(id: $id) }
     `, { id });
   } catch (e) { console.error('Error deleting answer:', e); }
-};
-
-const getSurveyStats = async (survey_id: string): Promise<any | null> => {
-  try {
-    const result = await gql(`
-      query SurveyStats($survey_id: ID!) { surveyStats(survey_id: $survey_id) }
-    `, { survey_id });
-    return result?.data?.surveyStats ?? null;
-  } catch (e) { console.error('Error fetching survey stats:', e); return null; }
 };
 
 const createSurvey = async (component_id: string, title: string) => {
@@ -409,6 +400,59 @@ const deleteRole = async (id: string): Promise<boolean> => {
   const result = throwOnGqlErrors(await gql(`
     mutation DeleteRole($id: ID!) { deleteRole(id: $id) }`, { id }));
   return result.data.deleteRole;
+};
+
+// ── account self-service (profile + secrets keychain) ────────────────────────
+
+export interface UserProfile { owner_id: string | null; data: Record<string, any>; }
+
+// The caller's own profile (form-driven display data; shape = form_user_profile).
+const getUserProfile = async (): Promise<UserProfile | null> => {
+  try {
+    const result = await gql(`query { userProfile { owner_id data } }`);
+    return result?.data?.userProfile ?? null;
+  } catch (e) { console.error('Error fetching user profile:', e); return null; }
+};
+
+const upsertUserProfile = async (data: Record<string, any>): Promise<UserProfile | null> => {
+  try {
+    const result = await gql(`
+      mutation UpsertUserProfile($data: JSON) {
+        upsertUserProfile(data: $data) { owner_id data }
+      }`, { data });
+    return result?.data?.upsertUserProfile ?? null;
+  } catch (e) { console.error('Error saving user profile:', e); throw e; }
+};
+
+// User secrets keychain — metadata only, the raw value is write-only.
+export interface UserSecret {
+  name: string; label: string; isSet: boolean;
+  last4: string | null; updated_at: string | null;
+}
+
+const getUserSecrets = async (): Promise<UserSecret[]> => {
+  try {
+    const result = await gql(`query { userSecrets { name label isSet last4 updated_at } }`);
+    return result?.data?.userSecrets ?? [];
+  } catch (e) { console.error('Error fetching user secrets:', e); return []; }
+};
+
+const setUserSecret = async (name: string, value: string): Promise<UserSecret | null> => {
+  try {
+    const result = await gql(`
+      mutation SetUserSecret($name: String!, $value: String!) {
+        setUserSecret(name: $name, value: $value) { name label isSet last4 updated_at }
+      }`, { name, value });
+    return result?.data?.setUserSecret ?? null;
+  } catch (e) { console.error('Error saving user secret:', e); throw e; }
+};
+
+const clearUserSecret = async (name: string): Promise<boolean> => {
+  try {
+    const result = await gql(`
+      mutation ClearUserSecret($name: String!) { clearUserSecret(name: $name) }`, { name });
+    return result?.data?.clearUserSecret ?? false;
+  } catch (e) { console.error('Error clearing user secret:', e); throw e; }
 };
 
 // ── files ─────────────────────────────────────────────────────────────────────
@@ -647,58 +691,6 @@ const deleteCvDocument = async (id: string) => {
   } catch (e) { console.error('Error deleting cv document:', e); }
 };
 
-export interface UserProfile { owner_id: string | null; data: Record<string, any>; }
-
-// The caller's own profile (form-driven display data; here the CV identity block).
-const getUserProfile = async (): Promise<UserProfile | null> => {
-  try {
-    const result = await gql(`query { userProfile { owner_id data } }`);
-    return result?.data?.userProfile ?? null;
-  } catch (e) { console.error('Error fetching user profile:', e); return null; }
-};
-
-const upsertUserProfile = async (data: Record<string, any>): Promise<UserProfile | null> => {
-  try {
-    const result = await gql(`
-      mutation UpsertUserProfile($data: JSON) {
-        upsertUserProfile(data: $data) { owner_id data }
-      }`, { data });
-    return result?.data?.upsertUserProfile ?? null;
-  } catch (e) { console.error('Error saving user profile:', e); throw e; }
-};
-
-// ── User secrets keychain — metadata only, the raw value is write-only ────────
-
-export interface UserSecret {
-  name: string; label: string; isSet: boolean;
-  last4: string | null; updated_at: string | null;
-}
-
-const getUserSecrets = async (): Promise<UserSecret[]> => {
-  try {
-    const result = await gql(`query { userSecrets { name label isSet last4 updated_at } }`);
-    return result?.data?.userSecrets ?? [];
-  } catch (e) { console.error('Error fetching user secrets:', e); return []; }
-};
-
-const setUserSecret = async (name: string, value: string): Promise<UserSecret | null> => {
-  try {
-    const result = await gql(`
-      mutation SetUserSecret($name: String!, $value: String!) {
-        setUserSecret(name: $name, value: $value) { name label isSet last4 updated_at }
-      }`, { name, value });
-    return result?.data?.setUserSecret ?? null;
-  } catch (e) { console.error('Error saving user secret:', e); throw e; }
-};
-
-const clearUserSecret = async (name: string): Promise<boolean> => {
-  try {
-    const result = await gql(`
-      mutation ClearUserSecret($name: String!) { clearUserSecret(name: $name) }`, { name });
-    return result?.data?.clearUserSecret ?? false;
-  } catch (e) { console.error('Error clearing user secret:', e); throw e; }
-};
-
 export interface CvArtifact {
   id: string; cv_component_id: string | null; file_id: string; label: string | null;
   created_at: string; filename: string; mime_type: string | null; size: string | null;
@@ -822,7 +814,7 @@ const ApiService = {
   createSurveyComponent, updateSurveyComponent, deleteSurveyComponent,
   createSurveyComponentRelation, deleteSurveyComponentRelation, swapSurveyComponentPositions,
   // surveys
-  getSurveys, getSurveyAnswers, getSurveyStats, submitAnswer, updateAnswer, deleteAnswer, createSurvey,
+  getSurveys, getSurveyAnswers, submitAnswer, updateAnswer, deleteAnswer, createSurvey,
   // auth & user management
   changePassword, getUsers, createUser, patchUser,
   // roles

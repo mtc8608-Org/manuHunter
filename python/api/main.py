@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.domains.compute.routes import router as compute_router
 from api.domains.latex.routes import router as latex_router
 
 app = FastAPI()
@@ -12,7 +11,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(compute_router)
+# Domain routers — one per python/api/domains/<domain>/routes.py
+# (see .claude/rules/python-compute.md). [CV]
 app.include_router(latex_router)
 
 

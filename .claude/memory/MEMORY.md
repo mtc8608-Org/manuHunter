@@ -8,7 +8,10 @@
 - [Sibling apps](sibling-apps.md) — pointers to manuSpine and manuBeat memory (bedside telemetry, cardio port, manuEdge Pi agent) and reusable framework takeaways
 - [Served multi-user plan](served-multi-user-plan.md) — single-user today, but manuHunter (and all ManuLab apps) will be served multi-user; never take single-user shortcuts
 - [User account keychain plan](user-account-keychain-plan.md) — SHIPPED: framework user_profile (ex cv_profile) + encrypted user_secrets keychain (write-only API, registry in secrets-registry.js) + Users backoffice page replacing Account's admin cards; prereq for phase 5
-- [Framework upstream candidates](framework-upstream-candidates.md) — running list of generic changes to push back to manuSpine (FormRenderer `lines` + `code`/CodeEditor types, PdfViewer, TreeEditor rootEditable, DataTable column-aware filters, collapsible layout columns, BuildKit apt cache mount, the `.claude/` config layout)
+- [Framework sync ledger](framework-upstream-candidates.md) — the 2026-07-02 port is fully landed upstream; Landed section is the fork-side merge map (per-item deviations) read by pull-upstream; Pending holds future flag-upstream entries
+- [Mobile app path](mobile-app-path.md) — Capacitor removed upstream 2026-07-04 (unused, CVE-carrying); PWA install covers most needs; re-add procedure if app-store/native APIs ever needed
+- [EChart owned wrapper](echart-owned-wrapper.md) — chart glue is ours (charts/EChart.tsx), engine stays echarts ^6; echarts-for-react removed
+- [Project file tree](project-file-tree.md) — annotated repo map (upstream framework view; this fork adds cv/jobs domains); consult before asserting structure, update on directory changes
 - [CV builder plan](cv-builder-plan.md) — CV builder state: manual builder + templates shipped (phases 1-4), key divergences (per-user `cv_profile` identity, separate areas), remaining phases 5-6
 - [CV builder phase 5: claude assisted](cv-builder-phase-5-claude-assisted.md) — (not built) /generate-cv route tailoring a CV from a job description, preview and save
 - [CV builder phase 6: applications](cv-builder-phase-6-applications.md) — SHIPPED: Job Applications area remade (Applications + Artifacts), attach CV/files, owner-scoped files; remaining: download scoping, generate-from-application, table view

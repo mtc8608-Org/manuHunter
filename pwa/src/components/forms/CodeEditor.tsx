@@ -1,6 +1,8 @@
-// CodeEditor — a lightweight, dependency-free LaTeX code field.
+// CodeEditor — a lightweight, dependency-free code field.
 // - Syntax highlighting via a transparent <textarea> layered over a highlighted
 //   <pre> (scroll-synced); no external editor/highlighter library.
+// - Language-pluggable: highlighters are registered per `language` in
+//   HIGHLIGHTERS; unknown languages fall back to plain (escaped) text.
 // - Collapsible section header so long blocks (preamble, header) can be folded.
 // - Controlled: give it `value` + `onChange`. Used by FormRenderer's `code` type.
 import React, { useEffect, useRef, useState } from 'react';
@@ -11,6 +13,7 @@ export interface CodeEditorProps {
   value: string;
   onChange: (v: string) => void;
   label?: string;
+  language?: string;
   minHeight?: number;
   defaultOpen?: boolean;
 }
@@ -18,23 +21,31 @@ export interface CodeEditorProps {
 const escapeHtml = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-// LaTeX tokens: comments, commands, braces/brackets, and math `$` delimiters.
-const TOKEN = /(%[^\n]*)|(\\[a-zA-Z@]+\*?|\\.)|([{}[\]])|(\$)/g;
-const COLOR = { comment: '#8b949e', cmd: '#4c8dff', brace: '#d29922', math: '#3fb950' } as const;
+type Highlighter = (code: string) => string;
 
-const highlightLatex = (code: string): string => {
+// LaTeX tokens: comments, commands, braces/brackets, and math `$` delimiters.
+const LATEX_TOKEN = /(%[^\n]*)|(\\[a-zA-Z@]+\*?|\\.)|([{}[\]])|(\$)/g;
+const LATEX_COLOR = { comment: '#8b949e', cmd: '#4c8dff', brace: '#d29922', math: '#3fb950' } as const;
+
+const highlightLatex: Highlighter = (code) => {
   let out = '', last = 0, m: RegExpExecArray | null;
-  TOKEN.lastIndex = 0;
-  while ((m = TOKEN.exec(code)) !== null) {
+  LATEX_TOKEN.lastIndex = 0;
+  while ((m = LATEX_TOKEN.exec(code)) !== null) {
     out += escapeHtml(code.slice(last, m.index));
     const [tok] = m;
-    const color = m[1] ? COLOR.comment : m[2] ? COLOR.cmd : m[3] ? COLOR.brace : COLOR.math;
+    const color = m[1] ? LATEX_COLOR.comment : m[2] ? LATEX_COLOR.cmd : m[3] ? LATEX_COLOR.brace : LATEX_COLOR.math;
     const italic = m[1] ? 'font-style:italic;' : '';
     out += `<span style="color:${color};${italic}">${escapeHtml(tok)}</span>`;
     last = m.index + tok.length;
   }
   out += escapeHtml(code.slice(last));
   return out + '\n';   // trailing newline keeps the last line visible under the textarea
+};
+
+const highlightPlain: Highlighter = (code) => escapeHtml(code) + '\n';
+
+const HIGHLIGHTERS: Record<string, Highlighter> = {
+  latex: highlightLatex,
 };
 
 const boxStyle: React.CSSProperties = {
@@ -52,11 +63,13 @@ const boxStyle: React.CSSProperties = {
 };
 
 const CodeEditor: React.FC<CodeEditorProps> = ({
-  value, onChange, label, minHeight = 160, defaultOpen = true,
+  value, onChange, label, language = 'latex', minHeight = 160, defaultOpen = true,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   const taRef  = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
+
+  const highlight = HIGHLIGHTERS[language] ?? highlightPlain;
 
   const syncScroll = () => {
     if (preRef.current && taRef.current) {
@@ -100,7 +113,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             ref={preRef}
             aria-hidden="true"
             style={{ ...boxStyle, position: 'absolute', inset: 0, pointerEvents: 'none', color: 'var(--ion-text-color)' }}
-            dangerouslySetInnerHTML={{ __html: highlightLatex(value ?? '') }}
+            dangerouslySetInnerHTML={{ __html: highlight(value ?? '') }}
           />
           <textarea
             ref={taRef}
