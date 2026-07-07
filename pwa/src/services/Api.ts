@@ -594,25 +594,6 @@ const addApplicationEvent = async (application_id: string, event_type: string, d
   } catch (e) { console.error('Error adding application event:', e); }
 };
 
-// Upload a tailored artifact and link it to the application in one call (REST).
-const uploadApplicationFile = async (applicationId: string, file: File, kind: string) => {
-  const form = new FormData();
-  form.append('file', file);
-  form.append('kind', kind);
-  const res = await fetch(`${API_BASE}${ENDPOINT.APPLICATIONS}/${applicationId}/files`, {
-    method: 'POST',
-    headers: getAuthHeader(),
-    body: form,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const e = new Error((err as any).error ?? 'Upload failed') as Error & { status: number };
-    e.status = res.status;
-    throw e;
-  }
-  return res.json();
-};
-
 // Link an already-stored file (e.g. a generated CV) to an application — no upload.
 const linkApplicationFile = async (application_id: string, file_id: string, kind: string) => {
   return gql(`
@@ -683,12 +664,6 @@ const updateCvDocument = async (id: string, data: any, name?: string): Promise<C
     `, { id, name, data });
     return result?.data?.updateCvDocument ?? null;
   } catch (e) { console.error('Error updating cv document:', e); throw e; }
-};
-
-const deleteCvDocument = async (id: string) => {
-  try {
-    return await gql(`mutation DeleteCvDocument($id: ID!) { deleteCvDocument(id: $id) }`, { id });
-  } catch (e) { console.error('Error deleting cv document:', e); }
 };
 
 export interface CvArtifact {
@@ -825,11 +800,11 @@ const ApiService = {
   getFiles, uploadFile, patchFile, deleteFile, fetchFileBlob,
   // applications (jobs domain)
   getApplications, getApplication, createApplication, updateApplication, deleteApplication,
-  addApplicationEvent, uploadApplicationFile, linkApplicationFile, unlinkApplicationFile,
+  addApplicationEvent, linkApplicationFile, unlinkApplicationFile,
   // cv builder
   getCvComponentList, getCvComponent, createCvComponent, updateCvComponent, deleteCvComponent,
   createCvRelation, deleteCvRelation, swapCvPositions, getCvComponentParents,
-  getCvDocuments, getCvDocument, createCvDocument, updateCvDocument, deleteCvDocument,
+  getCvDocuments, getCvDocument, createCvDocument, updateCvDocument,
   getCvArtifacts, compileCv, saveCvPdf, fetchCvArtifactBlob, deleteCvArtifact,
   // AI content generation
   generateContent,

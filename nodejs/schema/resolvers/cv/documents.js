@@ -54,16 +54,6 @@ const queries = {
       return res.rows;
     },
   },
-  cvComponentByName: {
-    type: CvComponentType,
-    args: { name: { type: GraphQLString } },
-    async resolve(_, { name }, ctx) {
-      const params = [name];
-      const scope = readScope(ctx, params);
-      const res = await pool.query(`SELECT * FROM cv_components WHERE name = $1${scope}`, params);
-      return res.rows[0] || null;
-    },
-  },
   cvComponentList: {
     type: new GraphQLList(CvComponentType),
     args: { type: { type: GraphQLString } },
@@ -99,16 +89,6 @@ const queries = {
       if (!isAdmin(ctx)) { params.push(userId(ctx)); where += ` AND owner_id = $1::uuid`; }
       const res = await pool.query(`SELECT * FROM cv_components WHERE ${where} ORDER BY name`, params);
       return res.rows;
-    },
-  },
-  cvDocument: {
-    type: CvComponentType,
-    args: { id: { type: new GraphQLNonNull(GraphQLID) } },
-    async resolve(_, { id }, ctx) {
-      const params = [id];
-      const scope = readScope(ctx, params);
-      const res = await pool.query(`SELECT * FROM cv_components WHERE id = $1::uuid${scope}`, params);
-      return res.rows[0] || null;
     },
   },
   cvArtifactList: {
@@ -228,14 +208,6 @@ const mutations = {
       const res = await pool.query('SELECT * FROM cv_components WHERE id = $1::uuid', [id]);
       const cur = res.rows[0];
       return updateCvComponent(id, name ?? cur.name, 'cvDocument', data ?? cur.data, cur.options);
-    },
-  },
-  deleteCvDocument: {
-    type: GraphQLBoolean,
-    args: { id: { type: new GraphQLNonNull(GraphQLID) } },
-    async resolve(_, { id }, ctx) {
-      await assertWritable(id, ctx);
-      return deleteCvComponent(id);
     },
   },
 };

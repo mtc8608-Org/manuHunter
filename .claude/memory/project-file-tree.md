@@ -47,13 +47,12 @@ manuHunter/
 │   ├── Dockerfile / Dockerfile.prod  # dev (deps at start, nodemon) / prod (slim, baked)
 │   ├── backend.js           # entry: middleware, route registration, startup seeds
 │   ├── db.js                # pg pool
-│   ├── permissions.js       # GraphQL tier lists (public/registered/user; admin default)
+│   ├── permissions.js       # GraphQL tier lists (registered/user; admin default; no public tier)
 │   ├── secrets-registry.js  # user-secrets keychain registry
 │   ├── lib/secrets.js
 │   ├── routes/
 │   │   ├── framework/       # REST: auth, files, content
-│   │   ├── cv/              # compile.js — calls Python latex service, stores PDF
-│   │   └── jobs/            # applications.js — artifact upload/download REST
+│   │   └── cv/              # compile.js — calls Python latex service, stores PDF
 │   └── schema/              # index.js (gate+merge), types.js
 │       ├── helpers/         # components.js, survey.js · domain: jobs.js, cv.js,
 │       │                    #   cvAssemble.js (walks cv tree → one .tex string)

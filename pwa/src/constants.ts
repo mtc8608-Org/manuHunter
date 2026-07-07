@@ -148,8 +148,6 @@ export const APP_STATUS = [
   'draft', 'applied', 'screening', 'interview', 'offer', 'rejected', 'ghosted', 'withdrawn',
 ] as const;
 
-export type AppStatus = (typeof APP_STATUS)[number];
-
 export const APP_STATUS_COLOR: Record<string, string> = {
   draft:     'medium',
   applied:   'primary',
@@ -233,11 +231,6 @@ export const ROLE_TIERS = ['registered', 'user', 'admin'] as const;
 // The shared default template (owner_id NULL). UUID hardcoded from the seed.
 export const CV_DEFAULT_TEMPLATE_ID = 'c51c1e5f-5cc1-4b77-8832-2d10cc97c000';
 
-// Leaf atoms (everything a section can hold).
-export const CV_LEAF_TYPES = new Set<string>([
-  CV_TYPE.TEXTROW, CV_TYPE.ENTRY, CV_TYPE.PUBLICATION,
-]);
-
 // Types offered in the TreeEditor add modal. A document holds sections; a section
 // holds leaves. The union is offered for both (the assembler ignores mis-placed
 // nodes); pick Section on a document, or a leaf on a section.
@@ -308,7 +301,6 @@ export const ENDPOINT = {
   FILES:            '/files',
   FILES_UPLOAD:     '/files/upload',
   GENERATE_CONTENT: '/generate-content',
-  APPLICATIONS:     '/applications',   // + `/${id}/files` for artifact upload
   CV:               '/cv',        // + `/${id}/compile`, `/${id}/save-pdf`, `/artifacts/${id}`
 } as const;
 // #endregion

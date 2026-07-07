@@ -48,11 +48,9 @@ module.exports = {
     'unlinkApplicationFile',
     // [CV] — every user builds their own CVs; resolvers scope by cv_components.owner_id
     'cvComponent',
-    'cvComponentByName',
     'cvComponentList',
     'cvComponentParents',
     'cvDocumentList',
-    'cvDocument',
     'cvArtifactList',
     'createCvComponent',
     'updateCvComponent',
@@ -62,7 +60,6 @@ module.exports = {
     'swapCvPositions',
     'createCvDocument',
     'updateCvDocument',
-    'deleteCvDocument',
     // surveys — viewing and answering is open to every signed-in account;
     // answer reads/edits are owner-scoped in the resolver (admin sees all)
     'surveyList',

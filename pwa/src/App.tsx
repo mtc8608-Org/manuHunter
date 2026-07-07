@@ -7,7 +7,6 @@ import { Route, Redirect } from 'react-router-dom';
 import Menu from './components/shell/Menu';
 import PrivateRoute from './components/routing/PrivateRoute';
 import AdminRoute from './components/routing/AdminRoute';
-import UserRoute from './components/routing/UserRoute';
 import Landing from './pages/public/Landing';
 import SignIn from './pages/public/SignIn';
 import Profile from './pages/user/Profile';

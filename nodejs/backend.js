@@ -58,9 +58,6 @@ server.use('/api', require('./routes/framework/auth'));
 server.use('/api', require('./routes/framework/files'));
 server.use('/api', require('./routes/framework/content'));
 
-// [JOBS]
-server.use('/api', require('./routes/jobs/applications'));
-
 // [CV]
 server.use('/api', require('./routes/cv/compile'));
 
