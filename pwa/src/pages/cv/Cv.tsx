@@ -4,7 +4,7 @@
 // Authenticated (PrivateRoute); each user sees only their own CVs, admin sees all.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { IonButton, IonSpinner, IonItem, IonText, IonInput } from '@ionic/react';
+import { IonButton, IonSpinner, IonItem, IonText, IonInput, IonRouterLink, useIonViewWillEnter } from '@ionic/react';
 import { documentTextOutline } from 'ionicons/icons';
 import ApiService from '../../services/Api';
 import { ComponentResults } from '../../interfaces/types';
@@ -18,7 +18,7 @@ import FormRenderer from '../../components/forms/FormRenderer';
 import TreeEditor, { TreeEditorHandle } from '../../components/shell/TreeEditor';
 import {
   CV_TYPE, CV_EDITOR_ID, CV_FORM, CV_DEFAULT_TEMPLATE_ID,
-  CV_ADDABLE_TYPES, AREA_NAV, PANEL_CONFIG,
+  CV_ADDABLE_TYPES, AREA_NAV, PANEL_CONFIG, ROUTE,
 } from '../../constants';
 
 
@@ -131,6 +131,9 @@ const Cv: React.FC = () => {
 
   const [identityForm, setIdentityForm]     = useState<ComponentResults | null>(null);
 
+  // True until proven otherwise so the notice never flashes while loading.
+  const [profileReady, setProfileReady]     = useState(true);
+
   // New CV modal
   const [newCvOpen, setNewCvOpen]           = useState(false);
   const [newCvSaving, setNewCvSaving]       = useState(false);
@@ -165,6 +168,15 @@ const Cv: React.FC = () => {
   useEffect(() => {
     ApiService.getComponentByName(CV_FORM.DOCUMENT).then(f => setIdentityForm((f ?? null) as ComponentResults | null));
   }, []);
+
+  // The compiled header (name, contacts) comes from the user's profile; warn
+  // while it is empty. Re-checked on every view entry so filling in the
+  // Profile page and coming back clears the notice.
+  const checkProfile = () => {
+    ApiService.getUserProfile().then(p => setProfileReady(!!p?.data?.name)).catch(() => {});
+  };
+  useEffect(checkProfile, []);
+  useIonViewWillEnter(checkProfile);
 
   const loadDoc = async (id: string) => {
     setDocLoading(true);
@@ -306,6 +318,15 @@ const Cv: React.FC = () => {
           <strong style={{ color: 'var(--ion-text-color)' }}>CV Builder</strong>
           {' — '}assemble a LaTeX CV from your reusable section library, set your identity values,
           then <strong>Compile</strong> to a live PDF and <strong>Save</strong> it to your generated CVs.
+          {!profileReady && (
+            <div style={{ marginTop: 4, fontWeight: 500, color: 'var(--ion-color-warning-shade)' }}>
+              The CV header (name, contacts) comes from your profile, which is still empty —{' '}
+              <IonRouterLink routerLink={ROUTE.PROFILE} style={{ fontWeight: 600 }}>
+                fill in your Profile
+              </IonRouterLink>{' '}
+              before compiling.
+            </div>
+          )}
         </div>
       }
       hidden={
