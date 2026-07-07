@@ -88,7 +88,6 @@ export interface ComponentResults {
   options: any;
   owner_id?: string;   // set on owner-scoped domains (e.g. cv_components); absent elsewhere
   children?: any;
-  owner_id?: string;   // set on owner-scoped domains; absent elsewhere
 }
 
 export interface Component {
