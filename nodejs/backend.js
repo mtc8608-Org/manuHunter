@@ -3,6 +3,8 @@ const express  = require('express');
 const jwt      = require('jsonwebtoken');
 const bcrypt   = require('bcryptjs');
 const cors     = require('cors');
+const fs       = require('fs');
+const path     = require('path');
 const { pool, minioClient, BUCKET } = require('./db');
 const { handler: graphqlHandler }   = require('./schema');
 
@@ -71,10 +73,6 @@ if (!/^[0-9a-fA-F]{64}$/.test(process.env.SECRETS_MASTER_KEY ?? '')) {
 
 server.listen(PORT, () => console.log('Server running on PORT http://localhost:' + PORT));
 
-if (!/^[0-9a-fA-F]{64}$/.test(process.env.SECRETS_MASTER_KEY ?? '')) {
-  console.warn('-> SECRETS_MASTER_KEY missing or not 64 hex chars — the user_secrets keychain is disabled (generate one with `openssl rand -hex 32` and add it to .env)');
-}
-
 (async () => {
   const MAX = 15;
   for (let attempt = 1; attempt <= MAX; attempt++) {
@@ -118,13 +116,49 @@ if (!/^[0-9a-fA-F]{64}$/.test(process.env.SECRETS_MASTER_KEY ?? '')) {
         console.warn('-> CV seed ownership warning:', cvErr.message);
       }
 
-      // ── MinIO bucket ──────────────────────────────────────────────────────
+      // ── MinIO bucket + content image seed ─────────────────────────────────
       try {
         const bucketExists = await minioClient.bucketExists(BUCKET);
         if (!bucketExists) await minioClient.makeBucket(BUCKET);
         console.log('-> MinIO bucket ready:', BUCKET);
+
+        // Any .png under /public (recursive, except favicon.png) is seeded
+        // under key seed-<basename>. The seed SQL references these stable keys
+        // so content images survive a DB reset.
+        const SKIP_PNGS = new Set(['favicon.png']);
+        const PNG_MIME  = 'image/png';
+        const getAllPngs = (dir) => {
+          if (!fs.existsSync(dir)) return [];
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          const results = [];
+          for (const e of entries) {
+            const full = path.join(dir, e.name);
+            if (e.isDirectory()) results.push(...getAllPngs(full));
+            else if (e.isFile() && e.name.endsWith('.png') && !SKIP_PNGS.has(e.name)) results.push(full);
+          }
+          return results;
+        };
+        const pngPaths = getAllPngs('/public');
+        for (const filePath of pngPaths) {
+          const filename     = path.basename(filePath);
+          const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const key          = `seed-${safeFilename}`;
+          let exists = false;
+          try { await minioClient.statObject(BUCKET, key); exists = true; } catch (_) {}
+          if (!exists) {
+            const buf = fs.readFileSync(filePath);
+            await minioClient.putObject(BUCKET, key, buf, buf.length, { 'Content-Type': PNG_MIME });
+            await pool.query(
+              `INSERT INTO files (bucket, key, filename, mime_type, size, description)
+               VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (bucket, key) DO NOTHING`,
+              [BUCKET, key, filename, PNG_MIME, buf.length, 'Seeded content image']
+            );
+            console.log(`-> Seeded content image: ${key}`);
+          }
+        }
+        console.log(`-> Content image seed done (${pngPaths.length} files checked)`);
       } catch (minioErr) {
-        console.warn('-> MinIO bucket warning:', minioErr.message);
+        console.warn('-> MinIO seed warning:', minioErr.message);
       }
       break;
     } catch (e) {
