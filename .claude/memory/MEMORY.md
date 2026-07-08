@@ -15,3 +15,4 @@
 - [CV builder plan](cv-builder-plan.md) — CV builder state: manual builder + templates shipped (phases 1-4), key divergences (per-user `cv_profile` identity, separate areas), remaining phases 5-6
 - [CV builder phase 5: claude assisted](cv-builder-phase-5-claude-assisted.md) — (not built) /generate-cv route tailoring a CV from a job description, preview and save
 - [CV builder phase 6: applications](cv-builder-phase-6-applications.md) — SHIPPED: Job Applications area remade (Applications + Artifacts), attach CV/files, owner-scoped files; remaining: download scoping, generate-from-application, table view
+- [Pre-deployment TODO](pre-deployment-todo.md) — audit findings before going internet-facing: 2 blockers (unscoped file downloads/XSS, open register+compute DoS) + hardening; deploy story itself is solid
