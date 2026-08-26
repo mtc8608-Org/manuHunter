@@ -69,3 +69,9 @@ init-scripts/seed-cv-samples.sql
 .claude/memory/deployment-plan.md
 .claude/memory/production-walkthrough.md
 .claude/memory/idea-ledger.md
+
+# ── Local assets ─────────────────────────────────────────────
+# Personal CV source dropped into pwa/public for hand-testing the PDF
+# viewer; nothing in the app references it and it is not a seeded asset
+# (only *.png under pwa/public is scanned into MinIO on boot).
+pwa/public/Profile.pdf
