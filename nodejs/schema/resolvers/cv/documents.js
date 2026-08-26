@@ -13,34 +13,36 @@ const {
   postCvComponent, updateCvComponent, deleteCvComponent,
   deleteCvRelation, relateCvComponents,
 } = require('../../helpers/cv');
+const {
+  userId, isAdmin, assertOwner, assertReadable, ownerScope,
+} = require('../../helpers/ownership');
 
-const isAdmin = (ctx) => ctx?.user?.tier === 'admin';
-const userId  = (ctx) => ctx?.user?.id ?? null;
-
-// Fetch a node and assert the caller may write to it (owner or admin).
-const assertWritable = async (id, ctx) => {
-  const res = await pool.query('SELECT owner_id FROM cv_components WHERE id = $1::uuid', [id]);
-  const row = res.rows[0];
-  if (!row) throw new Error('CV node not found');
-  if (isAdmin(ctx)) return true;
-  if (row.owner_id && row.owner_id === userId(ctx)) return true;
-  throw new Error('Not authorised for this CV node');
-};
-
-// Fetch a node and assert the caller may read it (owner, shared NULL, or admin).
-const assertReadable = async (id, ctx) => {
-  const res = await pool.query('SELECT owner_id FROM cv_components WHERE id = $1::uuid', [id]);
-  const row = res.rows[0];
-  if (!row) throw new Error('CV node not found');
-  if (isAdmin(ctx) || !row.owner_id || row.owner_id === userId(ctx)) return true;
-  throw new Error('Not authorised for this CV node');
-};
+// Every assert in this module targets the same table with the same label.
+const CV = { label: 'CV node' };
 
 // Read scope clause: owner OR shared (NULL). Admin gets no clause (sees all).
+//
+// NOT `ownerScope` from the shared helpers, and not a candidate for it: that one
+// is a strict `owner_id = me`, which is right for rows that always have an owner
+// (survey answers, artifacts). CV nodes deliberately include NULL-owned rows —
+// the shared default template and the sample CVs — which every user must be able
+// to READ (writes on them stay admin-only via assertOwner). Collapsing this onto
+// ownerScope would hide the shared template from every non-admin.
 const readScope = (ctx, params) => {
   if (isAdmin(ctx)) return '';
   params.push(userId(ctx));
   return ` AND (owner_id = $${params.length}::uuid OR owner_id IS NULL)`;
+};
+
+// A cvDocument's `data.template_id` is a client-supplied UUID that cvAssemble
+// later dereferences with NO owner filter, rendering the target's preamble and
+// header into the PDF. That makes it a link mutation in disguise: writing the id
+// is what grants the read. Authorise the far end here, exactly as
+// createCvRelation does for its child — otherwise pointing a CV at someone
+// else's template exfiltrates it through your own compile.
+const assertTemplateReadable = async (data, ctx) => {
+  const id = data?.template_id;
+  if (id) await assertReadable('cv_components', id, ctx, CV);
 };
 
 const queries = {
@@ -86,8 +88,7 @@ const queries = {
       // A user's own CV roots plus shared NULL-owned samples (read-only for
       // non-admins — writes on NULL nodes are admin-only); admin sees every document.
       const params = [];
-      let where = `type = 'cvDocument'`;
-      if (!isAdmin(ctx)) { params.push(userId(ctx)); where += ` AND (owner_id = $1::uuid OR owner_id IS NULL)`; }
+      const where = `type = 'cvDocument'${readScope(ctx, params)}`;
       const res = await pool.query(`SELECT * FROM cv_components WHERE ${where} ORDER BY name`, params);
       return res.rows;
     },
@@ -96,8 +97,7 @@ const queries = {
     type: new GraphQLList(CvArtifactType),
     async resolve(_, __, ctx) {
       const params = [];
-      let where = '';
-      if (!isAdmin(ctx)) { params.push(userId(ctx)); where = `WHERE a.owner_id = $1::uuid`; }
+      const where = `WHERE 1=1${ownerScope(ctx, params, 'a.owner_id')}`;
       const res = await pool.query(
         `SELECT a.id, a.cv_component_id, a.file_id, a.owner_id, a.label,
                 to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at,
@@ -135,7 +135,7 @@ const mutations = {
       options: { type: GraphQLJSON },
     },
     async resolve(_, args, ctx) {
-      await assertWritable(args.id, ctx);
+      await assertOwner('cv_components', args.id, ctx, CV);
       return updateCvComponent(args.id, args.name, args.type, args.data, args.options);
     },
   },
@@ -143,7 +143,7 @@ const mutations = {
     type: GraphQLBoolean,
     args: { id: { type: GraphQLID } },
     async resolve(_, { id }, ctx) {
-      await assertWritable(id, ctx);
+      await assertOwner('cv_components', id, ctx, CV);
       return deleteCvComponent(id);
     },
   },
@@ -151,10 +151,10 @@ const mutations = {
     type: GraphQLBoolean,
     args: { parent_id: { type: GraphQLID }, child_id: { type: GraphQLID } },
     async resolve(_, { parent_id, child_id }, ctx) {
-      await assertWritable(parent_id, ctx);
+      await assertOwner('cv_components', parent_id, ctx, CV);
       // The child must be readable too — compile walks relationships without an
       // owner filter, so linking a foreign node would exfiltrate its content.
-      await assertReadable(child_id, ctx);
+      await assertReadable('cv_components', child_id, ctx, CV);
       return relateCvComponents(parent_id, child_id);
     },
   },
@@ -162,7 +162,7 @@ const mutations = {
     type: GraphQLBoolean,
     args: { parent_id: { type: GraphQLID }, child_id: { type: GraphQLID } },
     async resolve(_, { parent_id, child_id }, ctx) {
-      await assertWritable(parent_id, ctx);
+      await assertOwner('cv_components', parent_id, ctx, CV);
       return deleteCvRelation(parent_id, child_id);
     },
   },
@@ -174,7 +174,7 @@ const mutations = {
       child_id_b: { type: GraphQLID },
     },
     async resolve(_, { parent_id, child_id_a, child_id_b }, ctx) {
-      await assertWritable(parent_id, ctx);
+      await assertOwner('cv_components', parent_id, ctx, CV);
       const res = await pool.query(
         'SELECT child_id, position FROM cv_components_relationships WHERE parent_id=$1::uuid AND child_id IN ($2::uuid, $3::uuid)',
         [parent_id, child_id_a, child_id_b]
@@ -192,8 +192,9 @@ const mutations = {
       name: { type: GraphQLString },
       data: { type: GraphQLJSON },
     },
-    resolve(_, args, ctx) {
+    async resolve(_, args, ctx) {
       const name = args.name || `cv_document_${Date.now()}`;
+      await assertTemplateReadable(args.data, ctx);
       return postCvComponent(name, 'cvDocument', args.data ?? {}, {}, userId(ctx), null);
     },
   },
@@ -205,7 +206,8 @@ const mutations = {
       data: { type: GraphQLJSON },
     },
     async resolve(_, { id, name, data }, ctx) {
-      await assertWritable(id, ctx);
+      await assertOwner('cv_components', id, ctx, CV);
+      await assertTemplateReadable(data, ctx);
       const res = await pool.query('SELECT * FROM cv_components WHERE id = $1::uuid', [id]);
       const cur = res.rows[0];
       return updateCvComponent(id, name ?? cur.name, 'cvDocument', data ?? cur.data, cur.options);

@@ -64,11 +64,15 @@ init-scripts/seed-cv-samples.sql
 !.claude/rules/
 !.claude/skills/
 !.claude/agents/
-# ...except personal notes, personal infra, and the brainstorm ledger
+# ...except personal notes, personal infra, the brainstorm ledger, and the
+# unfixed-security-findings TODO
 .claude/memory/user-manuel.md
 .claude/memory/deployment-plan.md
 .claude/memory/production-walkthrough.md
 .claude/memory/idea-ledger.md
+# NOTE: upstream gitignores .claude/memory/pre-deployment-todo.md (its copy is
+# personal infra). This fork deliberately tracks its own — the audit findings are
+# shared, not local — so that line is intentionally NOT taken from upstream.
 
 # ── Local assets ─────────────────────────────────────────────
 # Personal CV source dropped into pwa/public for hand-testing the PDF

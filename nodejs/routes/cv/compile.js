@@ -21,11 +21,17 @@ const isAdmin = (req) => req.user?.tier === 'admin';
 
 // Assert the caller may compile a cvDocument (owner, admin, or shared NULL-owned
 // sample — the same read rule as the resolvers), and return its row.
+// One error for "missing" and "someone else's" alike — splitting them into
+// 404-vs-403 turns the route into an existence oracle (see the no-existence-
+// oracle rule in .claude/rules/backend-api.md and schema/helpers/ownership.js).
+const NOT_FOUND_CV       = 'CV not found or not authorised';
+const NOT_FOUND_ARTIFACT = 'Artifact not found or not authorised';
+
 const loadOwnedDocument = async (id, req) => {
   const res = await pool.query('SELECT * FROM cv_components WHERE id = $1::uuid', [id]);
   const row = res.rows[0];
   if (!row || row.type !== 'cvDocument') return { error: 404 };
-  if (!isAdmin(req) && row.owner_id && row.owner_id !== req.user.id) return { error: 403 };
+  if (!isAdmin(req) && row.owner_id && row.owner_id !== req.user.id) return { error: 404 };
   return { row };
 };
 
@@ -42,29 +48,36 @@ const compileToPdf = async (docId, profileOwnerId) => {
 };
 
 // Turn an axios error from the Python service into a useful client error.
-const compileErrorPayload = (err) => {
+//
+// The `log` tail is ADMIN-ONLY. CV field content is raw LaTeX authored by any
+// registered account, so a deliberately-failing compile can print whatever the
+// interpreter read into that log — it is an exfiltration channel, not just a
+// diagnostic. pdflatex is confined by openin_any=p (latex/routes.py), so this is
+// defence in depth; ordinary users get the reason without the transcript.
+const compileErrorPayload = (err, req) => {
   const buf = err.response?.data;
   if (buf) {
     try {
       const parsed = JSON.parse(Buffer.from(buf).toString('utf-8'));
-      return { status: err.response.status || 422, body: parsed };
+      const body = isAdmin(req) ? parsed : { error: parsed.error || 'Compilation failed' };
+      return { status: err.response.status || 422, body };
     } catch (_) { /* not JSON */ }
   }
-  return { status: 500, body: { error: err.message || 'Compilation failed' } };
+  return { status: 500, body: { error: 'Compilation failed' } };
 };
 
 // POST /api/cv/:id/compile
 router.post('/cv/:id/compile', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
   const { row, error } = await loadOwnedDocument(req.params.id, req);
-  if (error) return res.status(error).json({ error: error === 404 ? 'CV not found' : 'Not authorised' });
+  if (error) return res.status(error).json({ error: NOT_FOUND_CV });
   try {
     const pdf = await compileToPdf(row.id, row.owner_id ?? req.user.id);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${row.name}.pdf"`);
     res.send(pdf);
   } catch (err) {
-    const { status, body } = compileErrorPayload(err);
+    const { status, body } = compileErrorPayload(err, req);
     console.error('-> CV compile error:', body.error ?? err.message);
     res.status(status).json(body);
   }
@@ -74,13 +87,13 @@ router.post('/cv/:id/compile', async (req, res) => {
 router.post('/cv/:id/save-pdf', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
   const { row, error } = await loadOwnedDocument(req.params.id, req);
-  if (error) return res.status(error).json({ error: error === 404 ? 'CV not found' : 'Not authorised' });
+  if (error) return res.status(error).json({ error: NOT_FOUND_CV });
 
   let pdf;
   try {
     pdf = await compileToPdf(row.id, row.owner_id ?? req.user.id);
   } catch (err) {
-    const { status, body } = compileErrorPayload(err);
+    const { status, body } = compileErrorPayload(err, req);
     console.error('-> CV save-pdf compile error:', body.error ?? err.message);
     return res.status(status).json(body);
   }
@@ -142,7 +155,7 @@ const loadOwnedArtifact = async (id, req) => {
   );
   const row = res.rows[0];
   if (!row) return { error: 404 };
-  if (!isAdmin(req) && row.owner_id !== req.user.id) return { error: 403 };
+  if (!isAdmin(req) && row.owner_id !== req.user.id) return { error: 404 };
   return { row };
 };
 
@@ -150,7 +163,7 @@ const loadOwnedArtifact = async (id, req) => {
 router.get('/cv/artifacts/:id/download', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
   const { row, error } = await loadOwnedArtifact(req.params.id, req);
-  if (error) return res.status(error).json({ error: error === 404 ? 'Artifact not found' : 'Not authorised' });
+  if (error) return res.status(error).json({ error: NOT_FOUND_ARTIFACT });
   try {
     if (row.mime_type) res.setHeader('Content-Type', row.mime_type);
     res.setHeader('Content-Disposition', `inline; filename="${row.filename}"`);
@@ -169,7 +182,7 @@ router.get('/cv/artifacts/:id/download', async (req, res) => {
 router.delete('/cv/artifacts/:id', async (req, res) => {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
   const { row, error } = await loadOwnedArtifact(req.params.id, req);
-  if (error) return res.status(error).json({ error: error === 404 ? 'Artifact not found' : 'Not authorised' });
+  if (error) return res.status(error).json({ error: NOT_FOUND_ARTIFACT });
   try {
     await minioClient.removeObject(BUCKET, row.file_key)
       .catch(e => console.warn('-> MinIO object removal failed (deleting row anyway):', e.message));

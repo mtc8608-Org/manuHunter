@@ -13,6 +13,7 @@ import ResourcePanel from '../../components/shell/ResourcePanel';
 import ModalShell from '../../components/shell/ModalShell';
 import EmptyState from '../../components/shell/EmptyState';
 import PdfViewer from '../../components/shell/PdfViewer';
+import { downloadBlob } from '../../utils/download';
 import { AREA_NAV, PANEL_CONFIG } from '../../constants';
 
 
@@ -93,10 +94,7 @@ const Artifacts: React.FC = () => {
   // Reuses the already-loaded preview bytes — no second fetch.
   const handleDownload = () => {
     if (!selected || !previewBlob) return;
-    const url = URL.createObjectURL(previewBlob);
-    const a = document.createElement('a');
-    a.href = url; a.download = selected.filename; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    downloadBlob(previewBlob, selected.filename);
   };
 
   const openUpload = () => { setUploadFile(null); setUploadDesc(''); setUploadError(''); setUploadOpen(true); };

@@ -60,8 +60,12 @@ module.exports = {
     'swapCvPositions',
     'createCvDocument',
     'updateCvDocument',
-    // surveys — viewing and answering is open to every signed-in account;
-    // answer reads/edits are owner-scoped in the resolver (admin sees all)
+    // surveys — DEVIATION from upstream, which places these on the 'user' rung
+    // as its worked example of the middle tier. Here every signed-in account may
+    // view and answer, so they stay in `registered`; answer reads/edits are
+    // owner-scoped in the resolver (admin sees all). The nav area (NAV_AREAS)
+    // and the route guard must mirror THIS file, not upstream's — so SURVEYS is
+    // a 'registered' area on PrivateRoute here, not TierRoute minTier="user".
     'surveyList',
     'surveyComponent',
     'surveyComponentList',
@@ -71,10 +75,11 @@ module.exports = {
     'updateAnswer',
   ],
 
-  // GraphQL query/mutation field names requiring role 'user' (or 'admin').
-  // Empty in this fork by design: the jobs/CV/survey domain ops live in
+  // GraphQL query/mutation field names requiring tier 'user' (or 'admin').
+  // Empty in this fork by design: the jobs/CV/survey domain ops all live in
   // `registered` (every account manages its own rows, owner-scoped in the
-  // resolvers), so nothing needs the middle tier.
+  // resolvers), so nothing needs the middle rung. Upstream keeps its surveys
+  // here; that placement is app-tuned and does not come down on merge.
   user: [],
 
   // Everything else requires role === 'admin'.

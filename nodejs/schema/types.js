@@ -278,6 +278,4 @@ module.exports = {
   ComponentInputType,
   UserType,
   RoleType,
-  UserProfileType,
-  UserSecretType,
 };

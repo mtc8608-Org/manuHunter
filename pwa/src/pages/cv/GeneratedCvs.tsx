@@ -12,6 +12,7 @@ import ResourcePanel from '../../components/shell/ResourcePanel';
 import ModalShell from '../../components/shell/ModalShell';
 import EmptyState from '../../components/shell/EmptyState';
 import PdfViewer from '../../components/shell/PdfViewer';
+import { downloadBlob } from '../../utils/download';
 import { AREA_NAV, PANEL_CONFIG } from '../../constants';
 
 
@@ -71,10 +72,7 @@ const GeneratedCvs: React.FC = () => {
   // Reuses the already-loaded preview bytes — no second fetch.
   const handleDownload = () => {
     if (!selected || !previewBlob) return;
-    const url  = URL.createObjectURL(previewBlob);
-    const link = document.createElement('a');
-    link.href = url; link.download = selected.filename; link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    downloadBlob(previewBlob, selected.filename);
   };
 
   const confirmDelete = async () => {

@@ -7,6 +7,10 @@ const {
 } = require('graphql');
 const { pool } = require('../../../db');
 const { ApplicationType, ApplicationEventType } = require('../../types');
+const { isAdmin, assertOwner, ownerScope } = require('../../helpers/ownership');
+
+// This table names its owner column `user_id`, not the helpers' `owner_id` default.
+const APP_OWNER = { column: 'user_id', label: 'Application' };
 
 // Formatted column list — dates/timestamps as strings the frontend can use directly.
 const APP_COLS = `id, user_id, company, role, location, source, job_url, job_description,
@@ -21,16 +25,6 @@ const WRITABLE = [
   'status', 'salary', 'contact', 'notes', 'applied_at',
 ];
 
-// Assert the caller owns the application (or is admin). Single error for
-// missing and foreign rows — no existence oracle.
-const assertApplicationOwner = async (application_id, ctx) => {
-  const res = await pool.query('SELECT user_id FROM applications WHERE id = $1::uuid', [application_id]);
-  const row = res.rows[0];
-  if (!row || (ctx?.user?.tier !== 'admin' && row.user_id !== ctx?.user?.id)) {
-    throw new Error('Application not found or not authorised');
-  }
-};
-
 const queries = {
   // Admin sees every application; a regular user sees only their own.
   applications: {
@@ -40,7 +34,7 @@ const queries = {
       console.log('-> List applications (status filter:', status, ')');
       const clauses = [];
       const params  = [];
-      if (ctx?.user?.tier !== 'admin') {
+      if (!isAdmin(ctx)) {
         params.push(ctx?.user?.id);
         clauses.push(`user_id = $${params.length}::uuid`);
       }
@@ -64,7 +58,7 @@ const queries = {
       const res = await pool.query(`SELECT ${APP_COLS} FROM applications WHERE id = $1::uuid`, [id]);
       const row = res.rows[0];
       // Single error for missing and foreign rows — no existence oracle.
-      if (!row || (ctx?.user?.tier !== 'admin' && row.user_id !== ctx?.user?.id)) {
+      if (!row || (!isAdmin(ctx) && row.user_id !== ctx?.user?.id)) {
         throw new Error('Application not found or not authorised');
       }
       return row;
@@ -126,8 +120,7 @@ const mutations = {
       const sets   = fields.map((c, i) => c === 'applied_at' ? `${c} = $${i + 1}::date` : `${c} = $${i + 1}`);
       const params = fields.map(c => rest[c]);
       params.push(id);
-      const scope = ctx?.user?.tier === 'admin' ? '' : ` AND user_id = $${params.length + 1}::uuid`;
-      if (scope) params.push(ctx?.user?.id);
+      const scope = ownerScope(ctx, params, 'user_id');
       const res = await pool.query(
         `UPDATE applications SET ${sets.join(', ')}, updated_at = NOW()
          WHERE id = $${fields.length + 1}::uuid${scope} RETURNING ${APP_COLS}`,
@@ -143,8 +136,7 @@ const mutations = {
     async resolve(_, { id }, ctx) {
       console.log('-> Delete application:', id);
       const params = [id];
-      let scope = '';
-      if (ctx?.user?.tier !== 'admin') { params.push(ctx?.user?.id); scope = ' AND user_id = $2::uuid'; }
+      const scope  = ownerScope(ctx, params, 'user_id');
       await pool.query(`DELETE FROM applications WHERE id = $1::uuid${scope}`, params);
       return true;
     },
@@ -158,7 +150,7 @@ const mutations = {
     },
     async resolve(_, { application_id, event_type, detail }, ctx) {
       console.log('-> Add application event:', application_id, event_type);
-      await assertApplicationOwner(application_id, ctx);
+      await assertOwner('applications', application_id, ctx, APP_OWNER);
       const res = await pool.query(
         `INSERT INTO application_events (application_id, event_type, detail)
          VALUES ($1::uuid, $2, $3)
@@ -179,10 +171,10 @@ const mutations = {
     },
     async resolve(_, { application_id, file_id, kind }, ctx) {
       console.log('-> Link file', file_id, 'to application', application_id);
-      await assertApplicationOwner(application_id, ctx);
+      await assertOwner('applications', application_id, ctx, APP_OWNER);
       // The file must be the caller's own upload too (admin may link any).
       const file = await pool.query('SELECT uploaded_by FROM files WHERE id = $1::uuid', [file_id]);
-      if (!file.rows[0] || (ctx?.user?.tier !== 'admin' && file.rows[0].uploaded_by !== ctx?.user?.id)) {
+      if (!file.rows[0] || (!isAdmin(ctx) && file.rows[0].uploaded_by !== ctx?.user?.id)) {
         throw new Error('File not found or not authorised');
       }
       await pool.query(
@@ -201,7 +193,7 @@ const mutations = {
     },
     async resolve(_, { application_id, file_id }, ctx) {
       console.log('-> Unlink file', file_id, 'from application', application_id);
-      await assertApplicationOwner(application_id, ctx);
+      await assertOwner('applications', application_id, ctx, APP_OWNER);
       await pool.query(
         'DELETE FROM application_files WHERE application_id = $1::uuid AND file_id = $2::uuid',
         [application_id, file_id]

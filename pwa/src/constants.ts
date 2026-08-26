@@ -228,6 +228,14 @@ export const ROLE_FORM = {
 // of these tiers; the set is code, never edited at runtime.
 export const ROLE_TIERS = ['registered', 'user', 'admin'] as const;
 
+export type RoleTier = typeof ROLE_TIERS[number];
+
+// Rung index on the ladder above; -1 for anything unrecognised. Comparisons are
+// `>=` against a required rung, so an unknown tier ranks below every rung and
+// fails closed (nothing shown) rather than open.
+export const tierRank = (tier: string | null | undefined): number =>
+  ROLE_TIERS.indexOf(tier as RoleTier);
+
 // The shared default template (owner_id NULL). UUID hardcoded from the seed.
 export const CV_DEFAULT_TEMPLATE_ID = 'c51c1e5f-5cc1-4b77-8832-2d10cc97c000';
 
@@ -240,7 +248,6 @@ export const CV_ADDABLE_TYPES = [
   { value: CV_TYPE.TEXTROW,     label: 'Text Row'    },
   { value: CV_TYPE.PUBLICATION, label: 'Publication' },
 ];
-
 // #endregion
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -471,14 +478,45 @@ export const AREA_NAV = {
   ],
 } as const;
 
-// Section groupings — used by AppHeader nav (authenticated users only).
-// The User area is deliberately absent: it is reached via the header person icon.
-export const NAV_SECTIONS = [
-  { label: 'Job Applications', routes: ['/folder/Applications', '/folder/Artifacts'],                 link: '/folder/Applications',  icon: 'briefcase'  },
-  { label: 'CV Builder',   routes: ['/folder/CVs', '/folder/GeneratedCVs', '/folder/Templates'],      link: '/folder/CVs',           icon: 'document-text' },
-  { label: 'Surveys',    routes: ['/folder/Surveys'],                                             link: '/folder/Surveys',       icon: 'clipboard'  },
-  { label: 'Backoffice', routes: ['/folder/Content', '/folder/Files', '/folder/Configuration', '/folder/Users', '/folder/Roles'],   link: '/folder/Content',       icon: 'construct',  adminOnly: true },
+// ── The single navigation source ──────────────────────────────────────────────
+// One entry per authenticated area, carrying everything the three nav surfaces
+// need: the drawer (Menu), the top-bar sections (AppHeader) and the in-page rail
+// (AreaShell, via the AREA_NAV items above). Adding an area is ONE entry here
+// plus its route in App.tsx — never hand-edit Menu.tsx or NAV_SECTIONS again.
+//
+//   title  — heading in the drawer and label in the top bar
+//   tier   — MINIMUM rung on the ROLE_TIERS ladder that may see the area. Every
+//            nav surface compares the caller's rung with `hasTier(area.tier)`,
+//            so all three rungs are expressible: 'registered' (any account),
+//            'user', 'admin'. Mirror what permissions.js grants the area's
+//            operations — nav is presentation, permissions.js is the gate.
+//   header — whether it gets a top-bar section button. The User area is false:
+//            it is reached via the header person icon instead.
+// Forks append their own areas here with a // [MY DOMAIN] comment.
+export const NAV_AREAS = [
+  // [MY DOMAIN] — jobs and CV areas. 'registered', not 'user': permissions.js
+  // puts every jobs/CV op on the registered rung (owner-scoped in the resolvers).
+  { key: 'APPLICATIONS', title: 'Job Applications', tier: 'registered', header: true,  items: AREA_NAV.APPLICATIONS },
+  { key: 'CV_BUILDER',   title: 'CV Builder',       tier: 'registered', header: true,  items: AREA_NAV.CV_BUILDER   },
+  // DEVIATION from upstream, which puts surveys on 'user' as its worked example
+  // of the middle rung. Here they sit in permissions.js `registered`, so the nav
+  // must say 'registered' too — nav mirrors THIS repo's permissions.js.
+  { key: 'SURVEYS',      title: 'Surveys',          tier: 'registered', header: true,  items: AREA_NAV.SURVEYS      },
+  { key: 'BACKOFFICE',   title: 'Backoffice',       tier: 'admin',      header: true,  items: AREA_NAV.BACKOFFICE   },
+  { key: 'USER',         title: 'Account',          tier: 'registered', header: false, items: AREA_NAV.USER         },
 ] as const;
+
+// Section groupings for AppHeader — derived, never hand-maintained.
+// `link` is where the section button navigates (its first page); `routes` is
+// every path that counts as "inside" the section for active-state matching.
+export const NAV_SECTIONS = NAV_AREAS
+  .filter(a => a.header)
+  .map(a => ({
+    label:  a.title,
+    routes: a.items.map(i => i.route) as readonly string[],
+    link:   a.items[0].route as string,
+    tier:   a.tier as RoleTier,
+  }));
 // #endregion
 ///////////////////////////////////////////////////////////////////////////////
 

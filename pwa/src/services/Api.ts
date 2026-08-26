@@ -59,6 +59,7 @@ const OPS: Record<Domain, {
   create: string; createInput: string;
   update: string; del: string;
   link: string; unlink: string;
+  swap: string;
 }> = {
   app: {
     getOne:      'component',        getList:     'componentList',
@@ -66,6 +67,7 @@ const OPS: Record<Domain, {
     update:      'updateComponent',  del:         'deleteComponent',
     link:        'createComponentRelation',
     unlink:      'deleteComponentRelation',
+    swap:        'swapComponentPositions',
   },
   survey: {
     getOne:      'surveyComponent',        getList:     'surveyComponentList',
@@ -73,6 +75,7 @@ const OPS: Record<Domain, {
     update:      'updateSurveyComponent',  del:         'deleteSurveyComponent',
     link:        'createSurveyComponentRelation',
     unlink:      'deleteSurveyComponentRelation',
+    swap:        'swapSurveyComponentPositions',
   },
   cv: {
     getOne:      'cvComponent',        getList:     'cvComponentList',
@@ -80,13 +83,8 @@ const OPS: Record<Domain, {
     update:      'updateCvComponent',  del:         'deleteCvComponent',
     link:        'createCvRelation',
     unlink:      'deleteCvRelation',
+    swap:        'swapCvPositions',
   },
-};
-
-const SWAP_MUT: Record<Domain, string> = {
-  app:    'swapComponentPositions',
-  survey: 'swapSurveyComponentPositions',
-  cv:     'swapCvPositions',
 };
 
 const getComponentByName = async (name: string): Promise<ComponentResults | undefined> => {
@@ -174,7 +172,7 @@ const unlinkNodes = async (domain: Domain, parent_id: string, child_id: string) 
 };
 
 const swapNodes = async (domain: Domain, parent_id: string, child_id_a: string, child_id_b: string) => {
-  const mut = SWAP_MUT[domain];
+  const { swap: mut } = OPS[domain];
   try {
     return await gql(`
       mutation Swap($parent_id: ID!, $child_id_a: ID!, $child_id_b: ID!) {
@@ -481,11 +479,13 @@ const uploadFile = async (file: File, description?: string) => {
   return res.json();
 };
 
-const patchFile = async (id: string, description: string) => {
+// Partial update. Only the fields passed are written, so publishing a file as a
+// content asset does not clobber its description (and vice versa).
+const patchFile = async (id: string, patch: { description?: string; is_public?: boolean }) => {
   const res = await fetch(`${API_BASE}${ENDPOINT.FILES}/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
-    body: JSON.stringify({ description }),
+    body: JSON.stringify(patch),
   });
   if (!res.ok) throw new Error('Failed to update file');
   return res.json();

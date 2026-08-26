@@ -8,9 +8,10 @@
 - [Sibling apps](sibling-apps.md) — pointers to manuSpine and manuBeat memory (bedside telemetry, cardio port, manuEdge Pi agent) and reusable framework takeaways
 - [Served multi-user plan](served-multi-user-plan.md) — single-user today, but manuHunter (and all ManuLab apps) will be served multi-user; never take single-user shortcuts
 - [User secrets keychain](user-secrets-keychain.md) — SHIPPED design record: framework user_profile (ex cv_profile) + encrypted user_secrets keychain (write-only API, registry in secrets-registry.js) + Users backoffice page replacing Account's admin cards; invariants codified in rules/backend-api.md
-- [Framework sync ledger](framework-upstream-candidates.md) — the 2026-07-02 port is fully landed upstream; Landed section is the fork-side merge map (per-item deviations) read by pull-upstream; Pending holds future flag-upstream entries
+- [Framework sync ledger](framework-upstream-candidates.md) — Landed sections are the fork-side merge map (per-item deviations) read by pull-upstream; merged through the 2026-08-26 security + tier-nav batch on 2026-08-26; Pending holds future flag-upstream entries
 - [Mobile app path](mobile-app-path.md) — Capacitor removed upstream 2026-07-04 (unused, CVE-carrying); PWA install covers most needs; re-add procedure if app-store/native APIs ever needed
 - [EChart owned wrapper](echart-owned-wrapper.md) — chart glue is ours (charts/EChart.tsx), engine stays echarts ^6; echarts-for-react removed
+- [Fork verbatim surface](fork-verbatim-surface.md) — inside `pwa/src` only five wiring surfaces may differ from manuSpine (App.tsx, constants.ts, types.ts, Api.ts, this fork's `pages/cv/` + `pages/jobs/`); everything else is verbatim upstream — includes the diff recipe to check this fork
 - [Project file tree](project-file-tree.md) — annotated repo map (framework + this fork's cv/jobs domains); consult before asserting structure, update on directory changes
 - [CV builder plan](cv-builder-plan.md) — CV builder state: manual builder + templates shipped (phases 1-4), key divergences (per-user `cv_profile` identity, separate areas), remaining phases 5-6
 - [CV builder phase 5: claude assisted](cv-builder-phase-5-claude-assisted.md) — (not built) /generate-cv route tailoring a CV from a job description, preview and save

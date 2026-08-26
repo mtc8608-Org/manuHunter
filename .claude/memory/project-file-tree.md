@@ -55,7 +55,8 @@ manuHunter/
 │   │   ├── framework/       # REST: auth, files, content
 │   │   └── cv/              # compile.js — calls Python latex service, stores PDF
 │   └── schema/              # index.js (gate+merge), types.js
-│       ├── helpers/         # components.js, survey.js · domain: jobs.js, cv.js,
+│       ├── helpers/         # components.js, survey.js, ownership.js (shared
+│       │                    #   owner-scoping primitives) · domain: jobs.js, cv.js,
 │       │                    #   cvAssemble.js (walks cv tree → one .tex string)
 │       └── resolvers/
 │           ├── framework/   # components, roles, survey, users
@@ -71,13 +72,13 @@ manuHunter/
 │       │   ├── shell/       # layout/structure: SplitPageLayout, SinglePanelLayout,
 │       │   │                #   AreaShell, AppHeader, Menu, ResourcePanel, DataTable,
 │       │   │                #   TabPanel, ModalShell, TreeEditor, EmptyState,
-│       │   │                #   JsonViewer, PdfViewer
+│       │   │                #   JsonViewer, PdfViewer, icons.ts (ICON_MAP)
 │       │   ├── charts/      # EChart (owned echarts glue)
 │       │   ├── content/     # CMS cards: ContentRenderer, ContentNav, HtmlCard,
 │       │   │                #   ImageCard, HtmlImageCard, LatexCard, CollapsibleCard
 │       │   ├── forms/       # FormRenderer, ComponentForm, CodeEditor, ImagePicker,
 │       │   │                #   ListModal, RichTextEditor
-│       │   └── routing/     # PrivateRoute, UserRoute, AdminRoute
+│       │   └── routing/     # PrivateRoute, TierRoute, AdminRoute
 │       ├── contexts/        # AuthContext, ThemeContext
 │       ├── interfaces/      # types.ts
 │       ├── pages/           # public/ (Landing, SignIn) · backoffice/ (Configuration,
@@ -85,6 +86,7 @@ manuHunter/
 │       │                    #   · domain: cv/ (Cv, CvTemplates, GeneratedCvs) ·
 │       │                    #   jobs/ (Applications, Artifacts)
 │       ├── services/Api.ts  # ALL API calls (gql helper + axios instance)
+│       ├── utils/           # download.ts (downloadBlob)
 │       └── theme/
 └── python/                  # FastAPI compute service (no DB/MinIO access)
     ├── Dockerfile / Dockerfile.prod  # dev (full base, hdf5-tools, --reload) / prod (slim)

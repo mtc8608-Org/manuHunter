@@ -20,6 +20,7 @@ import ModalShell from '../../components/shell/ModalShell';
 import ResourcePanel from '../../components/shell/ResourcePanel';
 import DataTable from '../../components/shell/DataTable';
 import FormRenderer from '../../components/forms/FormRenderer';
+import { downloadBlob } from '../../utils/download';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   AREA_NAV, PANEL_CONFIG, APP_STATUS, APP_STATUS_COLOR, APP_FILE_KINDS, APP_FORM,
@@ -203,10 +204,7 @@ const Applications: React.FC = () => {
   const download = async (id: string, filename: string) => {
     try {
       const blob = await ApiService.fetchFileBlob(id);
-      const url  = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      downloadBlob(blob, filename);
     } catch (e) { console.error('Download failed:', e); }
   };
 

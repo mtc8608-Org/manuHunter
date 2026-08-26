@@ -29,6 +29,15 @@ router = APIRouter(prefix="/latex")
 COMPILE_TIMEOUT = 60  # seconds, per pdflatex pass
 PASSES = 2
 
+# Confine pdflatex to its own temp directory. -no-shell-escape blocks \write18
+# (command execution) but NOT \input / \openin (file reads), and stock TeX Live
+# ships openin_any = a — read anything. The .tex source here is caller-authored
+# (CV nodes are registered-tier), so without this a signed-in user could
+# \input an arbitrary path and read it back out of the PDF or the failure log.
+# 'p' = paranoid: no absolute paths, no parent directories, no dotfiles.
+# See the shelling-out rule in .claude/rules/python-compute.md.
+TEX_ENV = {**os.environ, "openin_any": "p", "openout_any": "p"}
+
 
 class CompileRequest(BaseModel):
     latex_source: str
@@ -60,6 +69,7 @@ def compile_latex(req: CompileRequest):
                         tex_path,
                     ],
                     cwd=tmp,
+                    env=TEX_ENV,
                     capture_output=True,
                     text=True,
                     timeout=COMPILE_TIMEOUT,
