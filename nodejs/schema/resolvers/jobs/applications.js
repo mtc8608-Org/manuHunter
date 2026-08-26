@@ -137,7 +137,10 @@ const mutations = {
       console.log('-> Delete application:', id);
       const params = [id];
       const scope  = ownerScope(ctx, params, 'user_id');
-      await pool.query(`DELETE FROM applications WHERE id = $1::uuid${scope}`, params);
+      const res = await pool.query(`DELETE FROM applications WHERE id = $1::uuid${scope}`, params);
+      // Zero rows means missing OR someone else's — one error for both, and never
+      // a silent success (the write shape in .claude/rules/backend-api.md).
+      if (!res.rowCount) throw new Error('Application not found or not authorised');
       return true;
     },
   },

@@ -14,10 +14,12 @@ const axios   = require('axios');
 const { randomUUID } = require('crypto');
 const { pool, minioClient, BUCKET } = require('../../db');
 const { assembleCvLatex } = require('../../schema/helpers/cvAssemble');
+const { isAdmin } = require('../../schema/helpers/ownership');
+// Same safe headers the framework download uses — never hand-roll a MinIO pipe
+// (see lib/filestream.js); a local copy silently misses future hardening.
+const { streamFile } = require('../../lib/filestream');
 
 const router = express.Router();
-
-const isAdmin = (req) => req.user?.tier === 'admin';
 
 // Assert the caller may compile a cvDocument (owner, admin, or shared NULL-owned
 // sample — the same read rule as the resolvers), and return its row.
@@ -141,14 +143,14 @@ router.post('/cv/:id/save-pdf', async (req, res) => {
     res.json({ ...artifact, filename: fileRow.filename, mime_type: fileRow.mime_type, size: String(fileRow.size) });
   } catch (err) {
     console.error('-> CV save-pdf error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Could not save the PDF' });
   }
 });
 
 // Resolve an artifact the caller owns (or admin), returning it joined to its file.
 const loadOwnedArtifact = async (id, req) => {
   const res = await pool.query(
-    `SELECT a.*, f.key AS file_key, f.filename, f.mime_type
+    `SELECT a.*, f.key AS file_key, f.bucket, f.filename, f.mime_type
      FROM cv_artifacts a JOIN files f ON a.file_id = f.id
      WHERE a.id = $1::uuid`,
     [id]
@@ -165,13 +167,10 @@ router.get('/cv/artifacts/:id/download', async (req, res) => {
   const { row, error } = await loadOwnedArtifact(req.params.id, req);
   if (error) return res.status(error).json({ error: NOT_FOUND_ARTIFACT });
   try {
-    if (row.mime_type) res.setHeader('Content-Type', row.mime_type);
-    res.setHeader('Content-Disposition', `inline; filename="${row.filename}"`);
-    const stream = await minioClient.getObject(BUCKET, row.file_key);
-    stream.pipe(res);
+    await streamFile({ ...row, key: row.file_key }, res);
   } catch (e) {
     console.error('-> CV artifact download error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Download failed' });
   }
 });
 
@@ -190,7 +189,7 @@ router.delete('/cv/artifacts/:id', async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     console.error('-> CV artifact delete error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Delete failed' });
   }
 });
 

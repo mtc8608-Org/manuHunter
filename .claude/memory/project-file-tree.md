@@ -51,6 +51,8 @@ manuHunter/
 │   ├── permissions.js       # GraphQL tier lists (registered/user; admin default; no public tier)
 │   ├── secrets-registry.js  # user-secrets keychain registry
 │   ├── lib/secrets.js
+│   ├── lib/filestream.js   # mayRead + streamFile: read auth and safe headers
+│   │                       #   for any route streaming a files row (domain too)
 │   ├── routes/
 │   │   ├── framework/       # REST: auth, files, content
 │   │   └── cv/              # compile.js — calls Python latex service, stores PDF
@@ -89,14 +91,14 @@ manuHunter/
 │       ├── utils/           # download.ts (downloadBlob)
 │       └── theme/
 └── python/                  # FastAPI compute service (no DB/MinIO access)
-    ├── Dockerfile / Dockerfile.prod  # dev (full base, hdf5-tools, --reload) / prod (slim)
+    ├── Dockerfile / Dockerfile.prod  # dev (full base, TeX Live, --reload) / prod (slim)
     ├── requirements.txt     # intent (unpinned) · requirements.lock = enforced freeze
     └── api/
         ├── main.py          # app + router includes
         ├── domains/         # one dir per domain, <domain>/routes.py
         │   └── latex/       # routes.py — pdflatex compile for the CV builder
         │                    #   (sandboxed tempdir, no shell escape, hard timeout)
-        └── public/          # static index served by FastAPI
+        └── public/          # tracked, but nothing mounts it (no StaticFiles)
 ```
 
 Domain additions mirror the framework layout: `init-scripts/02-init-<domain>.sql`,

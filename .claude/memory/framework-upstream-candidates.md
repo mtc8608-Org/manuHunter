@@ -135,6 +135,52 @@ receive them on their next `merge upstream/master`. Details and open follow-ups:
   is. The rule wins — that parenthetical is gone with the entry.) On merge: take
   upstream, then `./run rebuild python`.
 
+## Landed 2026-08-26 (second batch) — compute-service hardening
+
+Found by the post-merge `exposure-auditor` gate run during manuHunter's
+pull-upstream. All three are **framework** bugs, so both forks inherit the fix.
+
+- ✅ **Dev compose no longer hands the python service `.env`** (`docker-compose.yml`)
+  — the compute service reads **zero** environment variables and is
+  credential-free by rule, which `docker-compose.prod.yml` already stated in a
+  comment while the dev file contradicted it. With a subprocess endpoint that can
+  be made to read files (see below), `env_file: .env` put `JWT_SECRET`,
+  `SECRETS_MASTER_KEY`, `ADMIN_PASSWORD` and the DB/MinIO passwords one request
+  away from any signed-in account. On merge: take upstream.
+- ✅ **`is_public` is admin-only** (`routes/framework/files.js`) — the PATCH owner
+  scope decides *which* row a caller may touch, not *what* they may set, so any
+  authenticated user could publish their own upload and expose it through the two
+  tokenless download streams. Those are tokenless for content assets only. Guard
+  added at the only place `is_public` is writable. On merge: take upstream; no
+  fork behaviour changes (ImagePicker publishes from the admin-only Content page).
+- ✅ **`python-compute.md` shelling-out rule gained two mandatory items** —
+  restrict what the binary may READ (`openin_any`/`openout_any` for TeX; shell
+  escape stops `\write18`, never `\input`), and never hand a subprocess's raw
+  output to a non-admin (compiler logs exfiltrate whatever was read). The old
+  three-item list is what let manuHunter's LaTeX endpoint ship with a file-read
+  primitive. On merge: take upstream, then audit any fork subprocess endpoint
+  against the new items — manuHunter's `latex/routes.py` needed both.
+
+- ✅ **Stale symbol references purged from shared agents/skills** — found by the
+  post-merge `dead-code-auditor` run. `convention-reviewer.md` and
+  `slice-mapper.md` still offered `UserRoute` in their route-guard menus (deleted
+  2026-08-26), `new-role/SKILL.md` still pointed at `isUser` (replaced by
+  `hasTier`), and `new-page/SKILL.md` told sessions to add nav to
+  `pwa/src/Menu.tsx` — a path that never existed and a step the nav
+  single-sourcing removed. All four now name `TierRoute`/`hasTier`/`NAV_AREAS`.
+  Historical mentions in this ledger's own Landed entries are records, not
+  instructions, and stay. On merge: take upstream.
+- ✅ **`lib/filestream.js` extracted** (`mayRead`, `INLINE_MIMES`, `streamFile`)
+  — these were module-private inside `routes/framework/files.js`, so a domain
+  route streaming its own `files` row had no way to reuse them and hand-rolled a
+  bare MinIO pipe instead. That is exactly what manuHunter's
+  `GET /api/cv/artifacts/:id/download` did: when the 2026-08-26 batch hardened the
+  framework path (`nosniff`, the inline-mime allowlist, attachment fallback), the
+  fork copy silently kept none of it. Behaviour of the two framework routes is
+  unchanged. On merge: take upstream, then point any domain file-streaming route
+  at `streamFile` and delete its hand-rolled headers — manuHunter's artifact
+  download needed this.
+
 ## Pending
 
 - **Retire `ComponentForm.tsx` and `ListModal.tsx` (2026-07-07)** —
