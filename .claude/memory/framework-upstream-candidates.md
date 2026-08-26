@@ -20,39 +20,37 @@ here in manuSpine (never cherry-picked), and moved to **Landed**. Forks then run
 
 ## Fork status (as of 2026-08-26)
 
-- **manuHunter** (`master`, at `9089e85`) — merged the 2026-07-02/07-04 batch on
-  2026-07-07 (merge commit `ccc9d8c`), but has **NOT merged the 14 commits since**
-  (`bb976c0..2ebbf71`): the whole 2026-08-26 security batch below, plus the
-  tier-generic nav/route work. Its next pull brings all of it at once. Every one
-  of the 16 `pwa/src` files that range touched currently differs, and **all of it
-  is fork-behind debt — not one unflagged fork edit** (verified by blob-history
-  match against manuSpine; see [[fork-verbatim-surface]]).
+- **manuHunter** (`master`) — **merged everything through `161e57e` on
+  2026-08-26** (merge commits `2e23707` then `f0f29f0`): the tier-generic nav/route
+  work, the 2026-08-26 security batch, and the compute-service hardening above.
+  Verified after: `tsc --noEmit` and a full `vite build` clean, all 24 backend
+  files parse, no conflict markers, and the `pwa/src` verbatim surface
+  ([[fork-verbatim-surface]]) reduced to its two legitimate `pages/cv` +
+  `pages/jobs` folders — every other file byte-identical. In `nodejs/` only the
+  four genuinely app-tuned files differ (`backend.js`, `permissions.js`,
+  `schema/index.js`, `schema/types.js`); the one framework-file drift it carried
+  (a specialised comment in `routes/framework/files.js`) was reverted.
 
-  Fork-side follow-ups the merge will **not** do on its own: re-add APPLICATIONS
-  and CV_BUILDER as `NAV_AREAS` entries (its `Menu.tsx` still carries them as
-  hand-written JSX blocks) and delete its hand-maintained `NAV_SECTIONS` literal,
-  which upstream now derives; delete the orphaned `UserRoute.tsx` (already
-  importer-less); collapse three hand-rolled `createObjectURL` copies
-  (GeneratedCvs, Artifacts, Applications) onto `downloadBlob`; drop its local
-  ownership helpers for `schema/helpers/ownership.js`.
+  **Deviations now in force** — the fork's `user` rung is **empty by design**:
+  jobs, CV *and surveys* all sit in `registered`, owner-scoped in the resolvers.
+  So its `NAV_AREAS` entries read `tier: 'registered'` (SURVEYS included, where
+  upstream uses `'user'`) and its survey route stays on `PrivateRoute`. The merge
+  silently took upstream's `TierRoute minTier="user"` for that route and had to be
+  reverted — **check this every time**: nav and route guards mirror the *fork's*
+  `permissions.js`, never upstream's. Also still in force: no public tier (gate
+  adapted, no `permissions.public` lookup); upstream's generic `form_user_profile`
+  d050 block deleted in favour of its richer same-name form in `03-init-cv.sql`;
+  CV template seeds set `options.language: "latex"`; Dockerfile keeps TeX Live,
+  no `hdf5-tools`; role-inverting lines re-worded fork-side in exactly four shared
+  files — `rules/backend-api.md`, `skills/new-api`, `skills/new-role`,
+  `skills/predeploy-audit` (`rules/db-schema.md` was on this list and no longer
+  diverges). Those four are the whole `.claude/` divergence; anything else
+  differing there is drift.
 
-  **Tier note — its `user` rung is empty by design.** Jobs, CV *and surveys* all
-  sit in `registered`, so its `NAV_AREAS` entries take `tier: 'registered'`
-  (SURVEYS included, where upstream uses `'user'`) and its domain routes stay on
-  `PrivateRoute`. Do **not** let the merge pull its survey area onto
-  `TierRoute minTier="user"` — that would hide a page its own permissions.js
-  grants. Nav mirrors the fork's permissions.js, never upstream's.
+  **Merge-artifact lesson:** `schema/types.js` came out with `UserProfileType` and
+  `UserSecretType` exported twice — the fork's list plus upstream's appended. Grep
+  merged export blocks for duplicate keys; `node --check` will not catch it.
 
-  Resolution outcomes from the 2026-07-07 merge, still in force: no public tier kept (gate adapted — no
-  `permissions.public` lookup in its `schema/index.js`); upstream's generic
-  `form_user_profile` d050 seed block **deleted** from its `01-init-db.sql`
-  (its richer same-name form in `03-init-cv.sql` wins — `components.name` is
-  UNIQUE); CV template seeds set `options.language: "latex"` explicitly;
-  Dockerfile keeps TeX Live but dropped `hdf5-tools` (only served the removed
-  compute engine); surveys placed on `PrivateRoute`/registered tier; four
-  role-inverting lines in shared rules/skills re-worded fork-side
-  (backend-api public-tier paragraph, db-schema framework-repo line,
-  new-api step 6, new-role ownership line).
 - **manuBeat** (`master`) — has NOT merged; last merged upstream **pre-port**
   (at 67c3a10), so its next pull brings the entire batch at once — and the
   security-critical GraphQL gate fix: its `schema/index.js` carries the
@@ -70,6 +68,123 @@ here in manuSpine (never cherry-picked), and moved to **Landed**. Forks then run
   authenticating with something that is not a real user row will start getting
   `req.user = null`.
 
+## Landed in manuSpine (all ported 2026-07-02) — merge notes per item
+
+- ✅ **`.claude/` config layout (rules/, skills/, CLAUDE.md sections)**.
+  On merge: take upstream for shared rules/skills; fork-specific rules and
+  CLAUDE.md domain sections stay fork-side.
+- ✅ **FormRenderer `lines` + `code` field types, CodeEditor** — **deviation**:
+  upstream CodeEditor is generalised behind a `language` prop (tokenizer registry
+  in `CodeEditor.tsx`; `latex` is the only built-in, unknown → plain text);
+  FormRenderer passes `options.language`. manuHunter's copy is LaTeX-hardcoded.
+  On merge: manuHunter takes upstream and sets `options.language: "latex"` at its
+  CV-builder call sites/seeds; drop its hardcoded tokenizer.
+- ✅ **PdfViewer shell component** — ported as-is; no conflict expected.
+- ✅ **Small shell tweaks** — `TreeEditor` `rootEditable`, `ResourcePanel`
+  sub-label skip + `getBadge: Badge | Badge[]` (stacked), AreaShell ICON_MAP
+  additions (briefcase/download/people/key/person/settings). Take upstream.
+- ✅ **DataTable column-aware filters (Tier 1)** — ported verbatim
+  (`filterOptions`/`columnTypes` props, typed operators). Tier 2 (server-side
+  structured filtering) remains a follow-up in **all** repos.
+- ✅ **Collapsible layout columns (SplitPageLayout + AreaShell)** — as-is
+  (rotated-title rail; icon-only rail variant still an open idea; mobile not
+  addressed).
+- ✅ **SinglePanelLayout + User area** — layout + `pages/user/` Profile / Account /
+  Settings (dark-mode toggle lives in Settings now, not Menu/AppHeader),
+  `AREA_NAV.USER`. **Deviation**: manuSpine seeds a minimal generic
+  `form_user_profile` (name / contact email / website, d050–d053). On merge:
+  forks keep the form **name** but may replace the fields (manuHunter already has
+  a richer profile incl. picture — its seed fields win, form name stays).
+- ✅ **User account: `user_profile` + `user_secrets` keychain + Users backoffice
+  page** — DDL, d000/d010 seeds, `lib/secrets.js`, `secrets-registry.js`, users
+  resolvers, `SECRETS_MASTER_KEY` env, Settings Integrations card,
+  `backoffice/Users.tsx`. Content page's Anthropic key comes from the keychain
+  (Content.tsx + `generateContent` signature). On merge: `secrets-registry.js` is
+  app-tuned — fork keeps its own entries, takes upstream structure; every fork
+  must have `SECRETS_MASTER_KEY` set in its env/compose.
+- ✅ **`registered` role + self-registration** — `POST /api/register`,
+  `AuthContext` `isUser`/`register`, `UserRoute`, SignIn register mode, role seeds.
+- ✅ **Roles catalogue + tier-based enforcement + Roles backoffice page** — roles
+  table d020–d022 + forms d030/d040, `roles.js` resolver, tier claim in JWT,
+  legacy-token normalisation, `backoffice/Roles.tsx`, `ROLE_TIERS`.
+- ✅ **Auth lockdown** — unified query/mutation rule, tier checks, REST guards in
+  compute/content/files, owner-scoped files. **Deliberate deviation**: manuSpine
+  keeps a minimal `public` permissions tier containing **only** `componentByName`
+  (read-only) so seeded Landing/CMS content is visible anonymously; manuHunter
+  removed the public tier entirely. Invariant upstream: never add another op to
+  `public`. On merge: `permissions.js`/`schema/index.js` conflict is expected —
+  both are app-tuned; the **fork's** public-tier stance wins (manuHunter keeps
+  no-public), and each fork must place its domain ops into tiers explicitly
+  (everything unlisted becomes admin-only).
+- ✅ **BuildKit apt cache mount (python image)** — mechanism only (syntax line,
+  cache mounts, docker-clean removal). Package list is app-tuned: manuSpine ships
+  `hdf5-tools`; manuHunter keeps TeX Live. On merge: take upstream mechanism,
+  keep the fork's package list.
+
+## Landed post-port (upstream-native, same merge batch)
+
+Not from manuHunter — added directly in manuSpine after the port; forks receive
+these in the same `merge upstream/master`:
+
+- ✅ **Surveys opened to the registered tier** (060bbfe) — `permissions.js`
+  survey ops moved to the registered tier; survey routes behind `UserRoute` in
+  `App.tsx`; `Menu.tsx`/`constants.ts` adjusted. All four files are app-tuned →
+  conflicts likely; take upstream's tier placement for survey ops, keep fork
+  domain entries.
+- ✅ **Upstream sync skills + diff-classifier agent** (b90b80d) —
+  `flag-upstream`/`port-upstream`/`pull-upstream` skills, `diff-classifier`
+  agent, one `.gitignore` line. Take upstream.
+- ✅ **Five development-loop agents** (d37a8b5) — pattern-scout,
+  convention-reviewer, slice-mapper, seed-author, ui-composer under
+  `.claude/agents/`. Take upstream.
+- ✅ **GraphQL gate hardening** (475730f, 2026-07-04) — the permission gate now
+  resolves the executed operation (`getOperationAST`) and enforces **every**
+  top-level field (fragment spreads expanded, fail closed); previously only
+  `definitions[0].selections[0]` was checked, so batching a privileged field
+  behind an allowed one — or leading with a fragment definition — bypassed
+  enforcement entirely (resolvers never check auth themselves). Rule line added
+  to `backend-api.md`. On merge: `schema/index.js` conflict is expected
+  (app-tuned) — the fork **must take upstream's gate mechanism**
+  (`topLevelFieldNames` + the per-field loop) and keep only its own tier-list
+  stance (e.g. manuHunter's no-public tier). Do not keep the fork's old
+  single-name gate.
+- ✅ **Seeded dev-guide auth docs updated to tier model** (8fccead, 2026-07-04) —
+  `seed-landing.sql`: permissions card rewritten (tier lists + every-top-level-
+  field gate), role→tier checks fixed in the JWT-middleware, writing-routes,
+  file-upload, pages-routing, and auth-architecture cards. On merge: take
+  upstream where the fork kept the framework dev-guide seeds; applies only
+  after `./run reset`.
+- ✅ **Login rate limiting** (2de9b96, 2026-07-04) — `express-rate-limit` on
+  `POST /login` (10 failed attempts per IP per 15 min; successful logins don't
+  count) in `routes/framework/auth.js`, plus `trust proxy: 1` in `backend.js`
+  for the single Caddy hop. On merge: take upstream (`auth.js`, `backend.js`,
+  `package.json`/lockfile); rebuild the node image for the new dependency.
+- ✅ **Survey reframe: owner-scoped answers + User Feedback demo + stats/compute
+  removal** (c0c68f0 / 1af9aaf / 9a4bfc3 / aae96c5 / 2ee6d3b, 2026-07-04) —
+  fixes the two owner-scoping majors from the exposure audit. Four parts:
+  (1) `survey_answers.owner_id UUID NOT NULL REFERENCES users(id)` + owner-scoped
+  resolvers (`surveyAnswers`/`updateAnswer` filter non-admins; `submitAnswer`
+  stamps `ctx.user.id`; `deleteAnswer` admin-only; `SurveyAnswerType` gains
+  `owner_id`/`owner_email`; Answers tab: admin-only By column + Delete). The
+  Survey System region moved **after** Users & Auth in `01-init-db.sql` (the FK
+  needs `users`). (2) Seeded `f000` survey reframed Patient Registration → User
+  Feedback (`surv_fb_*`, e000–e00d); `seed-sample-surveys.sql` deleted.
+  (3) Stats layer removed: `surveyStats` resolver, `routes/framework/compute.js`,
+  the Stats tab, `getSurveyStats`, `ENDPOINT.SURVEY_EXPORT`,
+  `python/api/domains/compute/` + pandas — the Python service is an empty
+  `/health` scaffold (framework ships no domains). (4) Survey/stats screenshots
+  deleted; App Guide survey cards + Dev Guide rewritten; docs/rules/skills point
+  at manuHunter's `cv/compile.js` + `latex/routes.py` as the compute exemplars.
+  On merge: **schema is reset-only, so `owner_id NOT NULL` lands via
+  `./run reset`** — any fork with domain code writing/reading `survey_answers`
+  must adapt to the owner column and scoped resolvers. **manuBeat's `bedside`
+  domain is a head-on collision** (a patient IS a survey answer on `f000`):
+  keep its own Patient Registration seed content if it wants it (app-tuned
+  seed wins), but it must take upstream's `survey_answers` DDL + resolver
+  scoping and decide who owns bedside-created answers. Forks keep their own
+  `python/api/domains/<domain>/` and Node compute callers (only the framework
+  `compute` domain and its `compute.js` route were deleted); regenerate
+  `requirements.lock` if the fork inherits the pandas removal.
 
 ## Landed 2026-08-26 — the manuHunter audit batch (upstream-native)
 

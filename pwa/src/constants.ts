@@ -227,7 +227,6 @@ export const ROLE_FORM = {
 // The fixed permissions ladder (nodejs/permissions.js). Roles alias onto one
 // of these tiers; the set is code, never edited at runtime.
 export const ROLE_TIERS = ['registered', 'user', 'admin'] as const;
-
 export type RoleTier = typeof ROLE_TIERS[number];
 
 // Rung index on the ladder above; -1 for anything unrecognised. Comparisons are
